@@ -56,13 +56,14 @@ app.get('/', (req, res) => {
 // ─────────────────────────────────────────────────────────── 
 app.post('/chat', upload.array('images', 10), async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, history } = req.body;
         const images = req.files || [];
 
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('📥 New Chat Request');
         console.log('Message:', message);
         console.log('Images:', images.length);
+        console.log('History:', history ? JSON.parse(history).length + ' messages' : 'none');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Validate message
@@ -72,12 +73,22 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
             });
         }
 
+        // Parse history
+        let chatHistory = [];
+        if (history) {
+            try {
+                chatHistory = JSON.parse(history);
+            } catch (e) {
+                console.warn('⚠️ Failed to parse history:', e.message);
+            }
+        }
+
         // Call OpenAI API if API key is available
         let aiResponse = '';
         
         if (process.env.OPENAI_API_KEY) {
             try {
-                aiResponse = await getOpenAIResponse(message, images);
+                aiResponse = await getOpenAIResponse(message, images, chatHistory);
             } catch (error) {
                 console.error('❌ OpenAI Error:', error.message);
                 aiResponse = generateFallbackResponse(message, images);
@@ -106,36 +117,55 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
 // ─────────────────────────────────────────────────────────── 
 // 🤖 OpenAI Integration
 // ─────────────────────────────────────────────────────────── 
-async function getOpenAIResponse(message, images) {
+async function getOpenAIResponse(message, images, chatHistory = []) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     const MODEL = process.env.MODEL || 'gpt-4o-mini';
-    const PROMPT_ID = process.env.OPENAI_PROMPT_ID;            // اختياري: استخدام Prompt جاهز من منصة OpenAI
+    const PROMPT_ID = process.env.OPENAI_PROMPT_ID;
     const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '1';
 
     // إذا كان لديك Prompt معرف (pmpt_...) سنستخدم واجهة responses الجديدة مع prompt
     if (PROMPT_ID) {
-        // بناء محتوى الإدخال وفق صيغة responses + prompt
-        const inputContent = [];
-        // نص المستخدم
-        inputContent.push({ type: 'input_text', text: message || '' });
-        // صور (إن وجدت)
+        // بناء تاريخ المحادثة + الرسالة الجديدة
+        const inputMessages = [];
+        
+        // إضافة آخر 10 رسائل من التاريخ
+        const recentHistory = chatHistory.slice(-10);
+        for (const msg of recentHistory) {
+            if (msg.role === 'user') {
+                inputMessages.push({
+                    role: 'user',
+                    content: [{ type: 'input_text', text: msg.text || '' }]
+                });
+            } else if (msg.role === 'bot') {
+                inputMessages.push({
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: msg.text || '' }]
+                });
+            }
+        }
+        
+        // الرسالة الجديدة من المستخدم
+        const newContent = [];
+        newContent.push({ type: 'input_text', text: message || '' });
+        
+        // إضافة الصور
         for (const image of (images || []).slice(0, 10)) {
             const base64Image = image.buffer.toString('base64');
-            inputContent.push({
+            newContent.push({
                 type: 'input_image',
                 image_url: { url: `data:${image.mimetype};base64,${base64Image}` }
             });
         }
+        
+        inputMessages.push({
+            role: 'user',
+            content: newContent
+        });
 
         const body = {
             model: MODEL,
             prompt: { id: PROMPT_ID, version: PROMPT_VERSION },
-            input: [
-                {
-                    role: 'user',
-                    content: inputContent
-                }
-            ],
+            input: inputMessages,
             store: true,
             include: ['reasoning.encrypted_content', 'web_search_call.action.sources']
         };
@@ -211,6 +241,23 @@ async function getOpenAIResponse(message, images) {
         }
     ];
 
+    // إضافة تاريخ المحادثة (آخر 10 رسائل)
+    const recentHistory = chatHistory.slice(-10);
+    for (const msg of recentHistory) {
+        if (msg.role === 'user') {
+            messages.push({
+                role: 'user',
+                content: msg.text || ''
+            });
+        } else if (msg.role === 'bot') {
+            messages.push({
+                role: 'assistant',
+                content: msg.text || ''
+            });
+        }
+    }
+
+    // إضافة الرسالة الجديدة مع الصور
     if (images.length > 0) {
         const content = [
             { type: 'text', text: message || 'ماذا ترى في هذه الصور؟' }

@@ -167,6 +167,13 @@ async function sendToAPI(message, images) {
     const formData = new FormData();
     formData.append('message', message);
     
+    // Add chat history (last 10 messages)
+    const historyToSend = chatHistory.slice(-10).map(msg => ({
+        role: msg.role,
+        text: msg.text
+    }));
+    formData.append('history', JSON.stringify(historyToSend));
+    
     // Add images
     for (let i = 0; i < images.length; i++) {
         const response = await fetch(images[i]);
