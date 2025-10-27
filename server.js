@@ -109,8 +109,63 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
 async function getOpenAIResponse(message, images) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     const MODEL = process.env.MODEL || 'gpt-4o-mini';
+    const PROMPT_ID = process.env.OPENAI_PROMPT_ID;            // اختياري: استخدام Prompt جاهز من منصة OpenAI
+    const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '1';
 
-    // Prepare messages
+    // إذا كان لديك Prompt معرف (pmpt_...) سنستخدم واجهة responses الجديدة مع prompt
+    if (PROMPT_ID) {
+        // بناء محتوى الإدخال وفق صيغة responses + prompt
+        const inputContent = [];
+        // نص المستخدم
+        inputContent.push({ type: 'input_text', text: message || '' });
+        // صور (إن وجدت)
+        for (const image of (images || []).slice(0, 10)) {
+            const base64Image = image.buffer.toString('base64');
+            inputContent.push({
+                type: 'input_image',
+                image_url: { url: `data:${image.mimetype};base64,${base64Image}` }
+            });
+        }
+
+        const body = {
+            model: MODEL,
+            prompt: { id: PROMPT_ID, version: PROMPT_VERSION },
+            input: [
+                {
+                    role: 'user',
+                    content: inputContent
+                }
+            ],
+            store: true,
+            include: ['reasoning.encrypted_content', 'web_search_call.action.sources']
+        };
+
+        const resp = await fetch('https://api.openai.com/v1/responses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!resp.ok) {
+            throw new Error(`OpenAI Responses API Error: ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        // محاولات متعددة لاستخراج النص بحسب البنية
+        if (data.output_text) return data.output_text;
+        if (Array.isArray(data.output)) {
+            const first = data.output[0];
+            const c = first?.content?.[0];
+            if (c?.type === 'output_text' && c?.text) return c.text;
+        }
+        // fallback أخير
+        return JSON.stringify(data);
+    }
+
+    // وإلا: نستخدم chat.completions التقليدي مع system + user
     const messages = [
         {
             role: 'system',
@@ -142,14 +197,10 @@ async function getOpenAIResponse(message, images) {
         }
     ];
 
-    // Add user message
     if (images.length > 0) {
-        // If images exist, add them with the message
         const content = [
             { type: 'text', text: message || 'ماذا ترى في هذه الصور؟' }
         ];
-
-        // Add images (convert to base64)
         for (const image of images.slice(0, 10)) {
             const base64Image = image.buffer.toString('base64');
             content.push({
@@ -159,19 +210,11 @@ async function getOpenAIResponse(message, images) {
                 }
             });
         }
-
-        messages.push({
-            role: 'user',
-            content: content
-        });
+        messages.push({ role: 'user', content: content });
     } else {
-        messages.push({
-            role: 'user',
-            content: message
-        });
+        messages.push({ role: 'user', content: message });
     }
 
-    // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -180,7 +223,7 @@ async function getOpenAIResponse(message, images) {
         },
         body: JSON.stringify({
             model: MODEL,
-            messages: messages,
+            messages,
             max_tokens: 1000,
             temperature: 0.7
         })
@@ -189,9 +232,8 @@ async function getOpenAIResponse(message, images) {
     if (!response.ok) {
         throw new Error(`OpenAI API Error: ${response.status}`);
     }
-
     const data = await response.json();
-    return data.choices[0].message.content;
+    return data.choices?.[0]?.message?.content || JSON.stringify(data);
 }
 
 // ─────────────────────────────────────────────────────────── 

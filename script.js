@@ -356,9 +356,20 @@ async function sendMessageToAPI(message, images = []) {
         hideTypingIndicator();
         updateStatus('جاهز');
         
-        // Add bot response
-        if (data.response) {
-            addMessage(data.response, false);
+        // Normalize bot reply shape (server may return different keys)
+        let botReply = null;
+        if (data && typeof data === 'object') {
+            botReply = data.response
+              ?? data.output_text
+              ?? (Array.isArray(data.output) ? (data.output[0]?.content?.[0]?.text || null) : null);
+        }
+        if (!botReply || typeof botReply !== 'string') {
+            // fallback to raw text if available
+            botReply = text && typeof text === 'string' ? text : null;
+        }
+        
+        if (botReply) {
+            addMessage(botReply, false);
         } else {
             throw new Error('لم يتم استلام رد من الخادم');
         }
