@@ -68,7 +68,8 @@ body {
     color: var(--color-text-primary);
     overflow-x: hidden;
     position: relative;
-    min-height: 100vh;
+    min-height: 100svh;
+    overscroll-behavior-y: contain;
     transition: background var(--transition-slow), color var(--transition-slow);
 }
 
@@ -326,6 +327,9 @@ body {
     border: 1px solid rgba(16, 185, 129, 0.2);
     transition: all var(--transition-normal);
     transform-style: preserve-3d;
+    display: flex;
+    flex-direction: column;
+    min-height: min(70svh, 900px);
 }
 
 .chat-container:hover {
@@ -337,7 +341,8 @@ body {
    📜 Messages Area
    ─────────────────────────────────────────────────────────── */
 .messages {
-    height: 600px;
+    flex: 1;
+    min-height: 300px;
     overflow-y: auto;
     padding: 30px;
     scroll-behavior: smooth;
@@ -372,6 +377,7 @@ body {
     margin-bottom: 25px;
     animation: messageSlideIn 0.4s ease-out;
     align-items: flex-start;
+    will-change: transform, opacity;
 }
 
 @keyframes messageSlideIn {
@@ -602,6 +608,7 @@ body {
 .input-area {
     background: var(--color-surface);
     border-top: 1px solid rgba(16, 185, 129, 0.2);
+    padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .input-form {
@@ -915,10 +922,8 @@ body {
         font-size: 1.2rem;
     }
     
-    .messages {
-        height: 500px;
-        padding: 20px 15px;
-    }
+    .chat-container { min-height: 78svh; }
+    .messages { padding: 20px 15px; }
     
     .message-content {
         max-width: 85%;

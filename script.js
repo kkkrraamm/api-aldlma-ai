@@ -315,7 +315,10 @@ function formatMessage(text) {
 }
 
 function scrollToBottom() {
-    elements.messages.scrollTop = elements.messages.scrollHeight;
+    // Smooth scroll to the very bottom; schedule to ensure layout is updated
+    requestAnimationFrame(() => {
+        elements.messages.scrollTop = elements.messages.scrollHeight + 1000;
+    });
 }
 
 function showTypingIndicator() {
@@ -454,7 +457,7 @@ async function handleSubmit(event) {
     const imageUrls = images.map(img => img.dataUrl);
     addMessage(message || '(صور مرفقة)', true, imageUrls);
     
-    // Clear input
+    // Clear input (without losing focus on mobile)
     elements.messageInput.value = '';
     state.selectedImages = [];
     updateImagePreview();
