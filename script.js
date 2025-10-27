@@ -16,7 +16,8 @@ const API_URL = window.location.hostname.includes('localhost')
 const state = {
     theme: localStorage.getItem('theme') || 'light',
     selectedImages: [],
-    isProcessing: false
+    isProcessing: false,
+    chatMessages: [] // {role:'user'|'bot', content:string, images?: string[]}
 };
 
 // ─────────────────────────────────────────────────────────── 
@@ -36,6 +37,37 @@ const elements = {
     statusText: document.getElementById('status-text'),
     loadingOverlay: document.getElementById('loading-overlay')
 };
+
+// ─────────────────────────────────────────────────────────── 
+// 💾 Chat Persistence (LocalStorage)
+// ─────────────────────────────────────────────────────────── 
+const CHAT_STORAGE_KEY = 'dalma_chat_history_v1';
+
+function loadChatHistory() {
+    try {
+        const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        state.chatMessages = arr;
+        // Replace welcome block with persisted messages
+        elements.messages.innerHTML = '';
+        for (const msg of state.chatMessages) {
+            addMessage(msg.content, msg.role === 'user', msg.images || []);
+        }
+    } catch (_) { /* ignore */ }
+}
+
+function persistMessage(role, content, images = []) {
+    state.chatMessages.push({ role, content, images });
+    // Keep last 200 messages max
+    if (state.chatMessages.length > 200) {
+        state.chatMessages = state.chatMessages.slice(-200);
+    }
+    try {
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.chatMessages));
+    } catch (_) { /* ignore */ }
+}
 
 // ─────────────────────────────────────────────────────────── 
 // 🎨 Theme Management
@@ -269,6 +301,9 @@ function addMessage(content, isUser = false, images = []) {
         duration: 0.4,
         ease: 'power2.out'
     });
+
+    // Persist
+    persistMessage(isUser ? 'user' : 'bot', content, images);
 }
 
 function formatMessage(text) {
@@ -318,6 +353,10 @@ async function sendMessageToAPI(message, images = []) {
         // Send request to API
         const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             body: formData
         });
         
@@ -337,19 +376,25 @@ async function sendMessageToAPI(message, images = []) {
             throw new Error(errorMessage);
         }
         
-        // Check if response has content
-        const text = await response.text();
-        if (!text) {
-            throw new Error('لم يتم استلام رد من الخادم (empty response)');
-        }
-        
-        // Parse JSON
+        // Respect content-type; avoid rendering HTML
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        let text = '';
         let data;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
-            console.error('❌ JSON Parse Error:', text);
-            throw new Error('خطأ في تحليل رد الخادم: ' + e.message);
+        if (contentType.includes('application/json')) {
+            // Read as text then parse to be resilient
+            text = await response.text();
+            if (!text) throw new Error('لم يتم استلام رد من الخادم (empty response)');
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('❌ JSON Parse Error:', text);
+                throw new Error('خطأ في تحليل رد الخادم');
+            }
+        } else {
+            // Non-JSON: don't show it to user (likely HTML fallback)
+            text = await response.text();
+            console.warn('⚠️ NON-JSON response preview:', text.slice(0, 200));
+            throw new Error('الخادم أعاد رداً غير متوقع، حاول لاحقاً');
         }
         
         // Hide typing indicator
@@ -547,6 +592,9 @@ function init() {
     
     // Focus on input
     elements.messageInput.focus();
+
+    // Load chat history last
+    loadChatHistory();
     
     console.log('✅ التطبيق جاهز!');
 }
