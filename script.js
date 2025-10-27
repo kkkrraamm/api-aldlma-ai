@@ -50,10 +50,15 @@ function loadChatHistory() {
         const arr = JSON.parse(raw);
         if (!Array.isArray(arr)) return;
         state.chatMessages = arr;
-        // Replace welcome block with persisted messages
-        elements.messages.innerHTML = '';
-        for (const msg of state.chatMessages) {
-            addMessage(msg.content, msg.role === 'user', msg.images || []);
+        // إذا كانت هناك رسالة ترحيبية فقط، احذفها ثم ابنِ التاريخ
+        const welcome = elements.messages.querySelector('.welcome-message');
+        const hasOther = elements.messages.querySelectorAll('.message').length > 1;
+        if (welcome && !hasOther) welcome.remove();
+        // أضف التاريخ فقط إن لم تكن موجودة مسبقاً في DOM
+        if (!hasOther) {
+            for (const msg of state.chatMessages) {
+                addMessage(msg.content, msg.role === 'user', msg.images || [], /*persist*/ false);
+            }
         }
     } catch (_) { /* ignore */ }
 }
@@ -268,7 +273,7 @@ function removeImage(index) {
 // ─────────────────────────────────────────────────────────── 
 // 💬 Message Handling
 // ─────────────────────────────────────────────────────────── 
-function addMessage(content, isUser = false, images = []) {
+function addMessage(content, isUser = false, images = [], persist = true) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
     
@@ -303,7 +308,9 @@ function addMessage(content, isUser = false, images = []) {
     });
 
     // Persist
-    persistMessage(isUser ? 'user' : 'bot', content, images);
+    if (persist) {
+        persistMessage(isUser ? 'user' : 'bot', content, images);
+    }
 }
 
 function formatMessage(text) {
@@ -426,7 +433,8 @@ async function sendMessageToAPI(message, images = []) {
         console.error('خطأ في إرسال الرسالة:', error);
         hideTypingIndicator();
         updateStatus('خطأ في الاتصال');
-        
+
+        // أظهر رسالة الخطأ كفقاعة منفصلة دون إزالة آخر رسالة للمستخدم
         addMessage(`عذراً، حدث خطأ في الاتصال: ${error.message}`, false);
     }
 }
