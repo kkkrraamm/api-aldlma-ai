@@ -154,15 +154,29 @@ async function getOpenAIResponse(message, images) {
         }
 
         const data = await resp.json();
-        // محاولات متعددة لاستخراج النص بحسب البنية
-        if (data.output_text) return data.output_text;
+        
+        // محاولة استخراج النص من الـ output
         if (Array.isArray(data.output)) {
-            const first = data.output[0];
-            const c = first?.content?.[0];
-            if (c?.type === 'output_text' && c?.text) return c.text;
+            // ابحث عن رسالة من نوع message
+            for (const item of data.output) {
+                if (item.type === 'message' && Array.isArray(item.content)) {
+                    for (const contentItem of item.content) {
+                        if (contentItem.type === 'output_text' && contentItem.text) {
+                            return contentItem.text;
+                        }
+                    }
+                }
+            }
         }
-        // fallback أخير
-        return JSON.stringify(data);
+        
+        // محاولة بديلة: output_text مباشرة
+        if (data.output_text) {
+            return data.output_text;
+        }
+        
+        // فشلت جميع المحاولات - أرجع خطأ واضح
+        console.error('❌ فشل استخراج النص من OpenAI Response:', JSON.stringify(data, null, 2));
+        throw new Error('لم أتمكن من استخراج الرد من OpenAI');
     }
 
     // وإلا: نستخدم chat.completions التقليدي مع system + user
