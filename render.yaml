@@ -1,17 +1,17 @@
 services:
+  # Backend API Server
   - type: web
-    name: dalma-ai-website
-    env: static
-    buildCommand: ""
-    staticPublishPath: .
-    headers:
-      - path: /*
-        name: Cache-Control
-        value: public, max-age=3600
-      - path: /style.css
-        name: Content-Type
-        value: text/css
-      - path: /script.js
-        name: Content-Type
-        value: application/javascript
+    name: dalma-ai-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MODEL
+        value: gpt-4o-mini
 
