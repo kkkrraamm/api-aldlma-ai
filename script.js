@@ -1,416 +1,321 @@
-// ========================================
-// Configuration
-// ========================================
-const CONFIG = {
-    API_URL: 'https://dalma-ai-backend.onrender.com/chat',
-    MAX_IMAGES: 10,
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 1000,
-    STORAGE_KEY: 'dalma_chat_history'
-};
+// ==================== Configuration ====================
+const API_URL = 'https://dalma-ai-backend.onrender.com/chat';
+const MAX_IMAGES = 10;
+const STORAGE_KEY = 'dalma_chat';
 
-// ========================================
-// State Management
-// ========================================
-const state = {
-    selectedImages: [],
-    isLoading: false,
-    currentTheme: localStorage.getItem('theme') || 'day',
-    chatHistory: []
-};
+// ==================== State ====================
+let selectedImages = [];
+let isLoading = false;
+let chatHistory = [];
 
-// ========================================
-// DOM Elements
-// ========================================
+// ==================== DOM Elements ====================
 const elements = {
-    messagesContainer: document.getElementById('messages'),
-    chatContainer: document.getElementById('chat-container'),
-    messageInput: document.getElementById('message-input'),
-    sendBtn: document.getElementById('send-btn'),
-    imageBtn: document.getElementById('image-btn'),
-    fileInput: document.getElementById('file-input'),
-    imagePreview: document.getElementById('image-preview'),
-    typingIndicator: document.getElementById('typing-indicator'),
-    themeToggle: document.getElementById('theme-toggle')
+    chatArea: document.getElementById('chatArea'),
+    messagesContainer: document.getElementById('messagesContainer'),
+    messageBox: document.getElementById('messageBox'),
+    sendBtn: document.getElementById('sendBtn'),
+    attachBtn: document.getElementById('attachBtn'),
+    fileInput: document.getElementById('fileInput'),
+    imagesPreview: document.getElementById('imagesPreview'),
+    typingBox: document.getElementById('typingBox'),
+    themeBtn: document.getElementById('themeBtn')
 };
 
-// ========================================
-// Initialization
-// ========================================
+// ==================== Initialize ====================
 function init() {
-    console.log('🌊 الدلما AI - تهيئة التطبيق...');
+    console.log('🌊 الدلما AI - جاري التحميل...');
     
-    // Initialize theme
-    initTheme();
+    // Load theme
+    const savedTheme = localStorage.getItem('theme') || 'day';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
     
     // Load chat history
-    loadChatHistory();
-    
-    // Show welcome if no history
-    if (state.chatHistory.length === 0) {
-        showWelcomeMessage();
-    }
+    loadHistory();
     
     // Event listeners
-    setupEventListeners();
-    
-    // Auto-resize textarea
-    autoResizeTextarea();
-    
-    console.log('✅ التطبيق جاهز!');
-}
-
-// ========================================
-// Event Listeners
-// ========================================
-function setupEventListeners() {
-    // Send message
-    elements.sendBtn.addEventListener('click', handleSubmit);
-    
-    // Enter to send (Shift+Enter for new line)
-    elements.messageInput.addEventListener('keydown', (e) => {
+    elements.sendBtn.addEventListener('click', handleSend);
+    elements.messageBox.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit();
+            handleSend();
         }
     });
+    elements.messageBox.addEventListener('input', autoResize);
+    elements.attachBtn.addEventListener('click', () => elements.fileInput.click());
+    elements.fileInput.addEventListener('change', handleFiles);
+    elements.themeBtn.addEventListener('click', toggleTheme);
     
-    // Auto-resize on input
-    elements.messageInput.addEventListener('input', autoResizeTextarea);
-    
-    // Image selection
-    elements.imageBtn.addEventListener('click', () => elements.fileInput.click());
-    elements.fileInput.addEventListener('change', handleFileSelect);
-    
-    // Theme toggle
-    elements.themeToggle.addEventListener('click', toggleTheme);
+    console.log('✅ جاهز!');
 }
 
-// ========================================
-// Theme Management
-// ========================================
-function initTheme() {
-    document.documentElement.setAttribute('data-theme', state.currentTheme);
-    updateThemeIcon();
-}
-
+// ==================== Theme ====================
 function toggleTheme() {
-    state.currentTheme = state.currentTheme === 'day' ? 'night' : 'day';
-    document.documentElement.setAttribute('data-theme', state.currentTheme);
-    localStorage.setItem('theme', state.currentTheme);
-    updateThemeIcon();
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'day' ? 'night' : 'day';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
 }
 
-function updateThemeIcon() {
-    const icon = elements.themeToggle.querySelector('i');
-    icon.className = state.currentTheme === 'day' ? 'fas fa-moon' : 'fas fa-sun';
+function updateThemeIcon(theme) {
+    const icon = elements.themeBtn.querySelector('i');
+    icon.className = theme === 'day' ? 'fas fa-moon' : 'fas fa-sun';
 }
 
-// ========================================
-// Chat History Management
-// ========================================
-function loadChatHistory() {
+// ==================== Chat History ====================
+function loadHistory() {
     try {
-        const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
+        const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            state.chatHistory = JSON.parse(saved);
-            renderChatHistory();
+            chatHistory = JSON.parse(saved);
+            renderHistory();
         }
     } catch (error) {
         console.error('خطأ في تحميل المحادثات:', error);
     }
 }
 
-function saveChatHistory() {
+function saveHistory() {
     try {
-        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state.chatHistory));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
     } catch (error) {
         console.error('خطأ في حفظ المحادثات:', error);
     }
 }
 
-function renderChatHistory() {
+function renderHistory() {
+    // Remove welcome message
+    const welcome = elements.messagesContainer.querySelector('.welcome-box');
+    if (welcome) welcome.remove();
+    
+    // Clear container
     elements.messagesContainer.innerHTML = '';
-    state.chatHistory.forEach(msg => {
-        addMessageToDOM(msg.role, msg.content, msg.images, msg.timestamp, false);
+    
+    // Render all messages
+    chatHistory.forEach(msg => {
+        addMessageDOM(msg.role, msg.text, msg.images, msg.time, false);
     });
+    
     scrollToBottom();
 }
 
-function clearWelcomeMessage() {
-    const welcome = elements.messagesContainer.querySelector('.welcome-message');
-    if (welcome) {
-        welcome.remove();
-    }
-}
-
-// ========================================
-// Welcome Message
-// ========================================
-function showWelcomeMessage() {
-    const welcomeDiv = document.createElement('div');
-    welcomeDiv.className = 'welcome-message';
-    welcomeDiv.innerHTML = `
-        <h2>مرحباً بك في الدلما AI</h2>
-        <p>كيف يمكنني مساعدتك اليوم؟</p>
-    `;
-    elements.messagesContainer.appendChild(welcomeDiv);
-}
-
-// ========================================
-// Message Handling
-// ========================================
-async function handleSubmit() {
-    const message = elements.messageInput.value.trim();
+// ==================== Send Message ====================
+async function handleSend() {
+    const text = elements.messageBox.value.trim();
     
-    if (!message && state.selectedImages.length === 0) {
-        return;
-    }
+    if (!text && selectedImages.length === 0) return;
+    if (isLoading) return;
     
-    if (state.isLoading) {
-        return;
-    }
-    
-    // Clear welcome on first message
-    clearWelcomeMessage();
+    // Remove welcome on first message
+    const welcome = elements.messagesContainer.querySelector('.welcome-box');
+    if (welcome) welcome.remove();
     
     // Add user message
-    const userMessage = {
+    const userMsg = {
         role: 'user',
-        content: message,
-        images: [...state.selectedImages],
-        timestamp: Date.now()
+        text: text,
+        images: [...selectedImages],
+        time: Date.now()
     };
     
-    state.chatHistory.push(userMessage);
-    saveChatHistory();
-    addMessageToDOM('user', message, state.selectedImages, Date.now());
+    chatHistory.push(userMsg);
+    saveHistory();
+    addMessageDOM('user', text, selectedImages, Date.now());
     
     // Clear input
-    elements.messageInput.value = '';
-    state.selectedImages = [];
-    elements.imagePreview.innerHTML = '';
-    autoResizeTextarea();
+    elements.messageBox.value = '';
+    selectedImages = [];
+    elements.imagesPreview.innerHTML = '';
+    autoResize();
     
-    // Show typing indicator
-    showTypingIndicator();
-    scrollToBottom();
+    // Show typing
+    showTyping();
     
     // Send to API
     try {
-        state.isLoading = true;
+        isLoading = true;
         elements.sendBtn.disabled = true;
         
-        const response = await sendMessageToAPI(message, userMessage.images);
+        const reply = await sendToAPI(text, userMsg.images);
         
-        // Add bot response
-        const botMessage = {
+        // Add bot reply
+        const botMsg = {
             role: 'bot',
-            content: response,
+            text: reply,
             images: [],
-            timestamp: Date.now()
+            time: Date.now()
         };
         
-        state.chatHistory.push(botMessage);
-        saveChatHistory();
-        addMessageToDOM('bot', response, [], Date.now());
+        chatHistory.push(botMsg);
+        saveHistory();
+        addMessageDOM('bot', reply, [], Date.now());
         
     } catch (error) {
-        console.error('خطأ في إرسال الرسالة:', error);
-        addMessageToDOM('bot', 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.', [], Date.now(), true);
+        console.error('خطأ:', error);
+        addMessageDOM('bot', 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.', [], Date.now(), true);
     } finally {
-        hideTypingIndicator();
-        state.isLoading = false;
+        hideTyping();
+        isLoading = false;
         elements.sendBtn.disabled = false;
-        elements.messageInput.focus();
-        scrollToBottom();
+        elements.messageBox.focus();
     }
 }
 
-// ========================================
-// API Communication
-// ========================================
-async function sendMessageToAPI(message, images, retryCount = 0) {
-    try {
-        const formData = new FormData();
-        formData.append('message', message);
-        
-        // Add images if any
-        for (let i = 0; i < images.length; i++) {
-            const response = await fetch(images[i]);
-            const blob = await response.blob();
-            formData.append('images', blob, `image_${i}.jpg`);
-        }
-        
-        const response = await fetch(CONFIG.API_URL, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.reply || data.message || 'لا يوجد رد';
-        
-    } catch (error) {
-        console.error(`❌ [API ERROR] Attempt ${retryCount + 1}:`, error);
-        
-        if (retryCount < CONFIG.MAX_RETRIES) {
-            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
-            return sendMessageToAPI(message, images, retryCount + 1);
-        }
-        
-        throw error;
+// ==================== API Call ====================
+async function sendToAPI(message, images) {
+    const formData = new FormData();
+    formData.append('message', message);
+    
+    // Add images
+    for (let i = 0; i < images.length; i++) {
+        const response = await fetch(images[i]);
+        const blob = await response.blob();
+        formData.append('images', blob, `img_${i}.jpg`);
     }
+    
+    const response = await fetch(API_URL, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.reply || data.message || 'لا يوجد رد';
 }
 
-// ========================================
-// DOM Message Rendering
-// ========================================
-function addMessageToDOM(role, content, images = [], timestamp = Date.now(), isError = false) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
+// ==================== Add Message to DOM ====================
+function addMessageDOM(role, text, images = [], time = Date.now(), isError = false) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `msg ${role}`;
+    if (isError) msgDiv.classList.add('error-msg');
     
     // Avatar
-    const avatarDiv = document.createElement('div');
-    avatarDiv.className = 'message-avatar';
-    avatarDiv.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
     
-    // Content
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'message-content';
-    if (isError) {
-        contentDiv.classList.add('error-message');
-    }
+    // Bubble
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
     
     // Text
-    if (content) {
+    if (text) {
         const textDiv = document.createElement('div');
-        textDiv.className = 'message-text';
-        textDiv.textContent = content;
-        contentDiv.appendChild(textDiv);
+        textDiv.className = 'msg-text';
+        textDiv.textContent = text;
+        bubble.appendChild(textDiv);
     }
     
     // Images
     if (images && images.length > 0) {
-        const imagesDiv = document.createElement('div');
-        imagesDiv.className = 'message-images';
-        images.forEach(imgSrc => {
+        const imgsDiv = document.createElement('div');
+        imgsDiv.className = 'msg-images';
+        images.forEach(src => {
             const img = document.createElement('img');
-            img.src = imgSrc;
-            img.className = 'message-image';
+            img.src = src;
             img.alt = 'صورة';
             img.loading = 'lazy';
-            imagesDiv.appendChild(img);
+            imgsDiv.appendChild(img);
         });
-        contentDiv.appendChild(imagesDiv);
+        bubble.appendChild(imgsDiv);
     }
     
-    // Timestamp
+    // Time
     const timeDiv = document.createElement('div');
-    timeDiv.className = 'message-time';
-    timeDiv.textContent = formatTime(timestamp);
-    contentDiv.appendChild(timeDiv);
+    timeDiv.className = 'msg-time';
+    timeDiv.textContent = formatTime(time);
+    bubble.appendChild(timeDiv);
     
-    messageDiv.appendChild(avatarDiv);
-    messageDiv.appendChild(contentDiv);
+    msgDiv.appendChild(avatar);
+    msgDiv.appendChild(bubble);
+    elements.messagesContainer.appendChild(msgDiv);
     
-    elements.messagesContainer.appendChild(messageDiv);
     scrollToBottom();
 }
 
-// ========================================
-// Typing Indicator
-// ========================================
-function showTypingIndicator() {
-    elements.typingIndicator.style.display = 'flex';
+// ==================== Typing Indicator ====================
+function showTyping() {
+    elements.typingBox.style.display = 'flex';
     scrollToBottom();
 }
 
-function hideTypingIndicator() {
-    elements.typingIndicator.style.display = 'none';
+function hideTyping() {
+    elements.typingBox.style.display = 'none';
 }
 
-// ========================================
-// Image Handling
-// ========================================
-function handleFileSelect(event) {
-    const files = Array.from(event.target.files);
+// ==================== File Handling ====================
+function handleFiles(e) {
+    const files = Array.from(e.target.files);
     
-    if (state.selectedImages.length + files.length > CONFIG.MAX_IMAGES) {
-        alert(`يمكنك رفع ${CONFIG.MAX_IMAGES} صور كحد أقصى`);
+    if (selectedImages.length + files.length > MAX_IMAGES) {
+        alert(`يمكنك رفع ${MAX_IMAGES} صور كحد أقصى`);
         return;
     }
     
     files.forEach(file => {
-        if (!file.type.startsWith('image/')) {
-            return;
-        }
+        if (!file.type.startsWith('image/')) return;
         
         const reader = new FileReader();
-        reader.onload = (e) => {
-            state.selectedImages.push(e.target.result);
-            renderImagePreview();
+        reader.onload = (ev) => {
+            selectedImages.push(ev.target.result);
+            renderPreview();
         };
         reader.readAsDataURL(file);
     });
     
-    // Reset input
-    event.target.value = '';
+    e.target.value = '';
 }
 
-function renderImagePreview() {
-    elements.imagePreview.innerHTML = '';
+function renderPreview() {
+    elements.imagesPreview.innerHTML = '';
     
-    state.selectedImages.forEach((imgSrc, index) => {
-        const previewItem = document.createElement('div');
-        previewItem.className = 'preview-item';
+    selectedImages.forEach((src, idx) => {
+        const div = document.createElement('div');
+        div.className = 'preview-img';
         
         const img = document.createElement('img');
-        img.src = imgSrc;
-        img.alt = `صورة ${index + 1}`;
+        img.src = src;
         
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'preview-remove';
-        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        removeBtn.onclick = () => removeImage(index);
+        const btn = document.createElement('button');
+        btn.className = 'remove-img';
+        btn.innerHTML = '<i class="fas fa-times"></i>';
+        btn.onclick = () => removeImage(idx);
         
-        previewItem.appendChild(img);
-        previewItem.appendChild(removeBtn);
-        elements.imagePreview.appendChild(previewItem);
+        div.appendChild(img);
+        div.appendChild(btn);
+        elements.imagesPreview.appendChild(div);
     });
 }
 
-function removeImage(index) {
-    state.selectedImages.splice(index, 1);
-    renderImagePreview();
+function removeImage(idx) {
+    selectedImages.splice(idx, 1);
+    renderPreview();
 }
 
-// ========================================
-// Utility Functions
-// ========================================
-function autoResizeTextarea() {
-    const textarea = elements.messageInput;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+// ==================== Utilities ====================
+function autoResize() {
+    const box = elements.messageBox;
+    box.style.height = 'auto';
+    box.style.height = Math.min(box.scrollHeight, 180) + 'px';
 }
 
 function scrollToBottom() {
     requestAnimationFrame(() => {
-        elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+        elements.chatArea.scrollTop = elements.chatArea.scrollHeight;
     });
 }
 
 function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    const d = new Date(timestamp);
+    const h = d.getHours().toString().padStart(2, '0');
+    const m = d.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
 }
 
-// ========================================
-// Start Application
-// ========================================
+// ==================== Start ====================
 document.addEventListener('DOMContentLoaded', init);
+
