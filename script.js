@@ -184,7 +184,7 @@ async function sendToAPI(message, images) {
     }
     
     const data = await response.json();
-    return data.reply || data.message || 'لا يوجد رد';
+    return data.response || data.reply || data.message || 'لا يوجد رد';
 }
 
 // ==================== Add Message to DOM ====================
