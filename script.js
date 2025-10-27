@@ -394,7 +394,7 @@ function removeImage(index) {
 function autoResizeTextarea() {
     const textarea = elements.messageInput;
     textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
 }
 
 function scrollToBottom() {

@@ -301,8 +301,8 @@ body {
 .input-area {
     background: var(--surface-color);
     border-top: 1px solid var(--border-color);
-    padding: 15px 20px;
-    padding-bottom: max(env(safe-area-inset-bottom), 15px);
+    padding: 18px 20px;
+    padding-bottom: max(env(safe-area-inset-bottom), 18px);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
     flex-shrink: 0;
 }
@@ -344,13 +344,15 @@ body {
     flex: 1;
     border: 1px solid var(--border-color);
     border-radius: 22px;
-    padding: 12px 18px;
-    font-size: 0.95rem;
+    padding: 14px 20px;
+    font-size: 1rem;
     font-family: inherit;
     background: var(--bg-color);
     color: var(--text-primary);
     resize: none;
-    max-height: 120px;
+    min-height: 50px;
+    max-height: 150px;
+    line-height: 1.5;
     transition: border-color 0.2s ease;
     outline: none;
 }
@@ -570,6 +572,15 @@ body {
     
     .message-text {
         font-size: 0.9rem;
+    }
+    
+    .message-input {
+        font-size: 1rem;
+        min-height: 48px;
+    }
+    
+    .input-area {
+        padding: 15px 12px;
     }
 }
 
