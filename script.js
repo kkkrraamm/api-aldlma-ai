@@ -310,17 +310,47 @@ async function sendMessageToAPI(message, images = []) {
         showTypingIndicator();
         updateStatus('جاري الإرسال...');
         
+        // Log request details
+        console.log('📤 [REQUEST] Sending to:', `${API_URL}/chat`);
+        console.log('📤 [REQUEST] Message:', message);
+        console.log('📤 [REQUEST] Images:', images.length);
+        
         // Send request to API
         const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             body: formData
         });
         
+        console.log('📥 [RESPONSE] Status:', response.status);
+        console.log('📥 [RESPONSE] OK:', response.ok);
+        
         if (!response.ok) {
-            throw new Error(`خطأ في الاتصال: ${response.status}`);
+            // Try to read error message from response
+            let errorMessage = `خطأ في الاتصال: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.message || errorMessage;
+            } catch (e) {
+                // If JSON parsing fails, use status text
+                errorMessage = `${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
         
-        const data = await response.json();
+        // Check if response has content
+        const text = await response.text();
+        if (!text) {
+            throw new Error('لم يتم استلام رد من الخادم (empty response)');
+        }
+        
+        // Parse JSON
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('❌ JSON Parse Error:', text);
+            throw new Error('خطأ في تحليل رد الخادم: ' + e.message);
+        }
         
         // Hide typing indicator
         hideTypingIndicator();
