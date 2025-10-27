@@ -2,150 +2,69 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الدلما AI - مساعدك الذكي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>الدلما AI - محادثة ذكية</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Three.js for 3D Effects -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- GSAP for Animations -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- 3D Background Canvas -->
-    <canvas id="bg-canvas"></canvas>
-    
-    <!-- Floating Particles -->
-    <div class="particles" id="particles"></div>
-    
-    <!-- Theme Toggle -->
-    <button id="theme-toggle" class="theme-toggle" aria-label="تبديل الوضع">
-        <i class="fas fa-moon"></i>
-    </button>
-    
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Header - مطابق لتطبيق الدلما -->
-        <header class="header">
-            <div class="header-content">
-                <!-- Logo with Glow Effect -->
-                <div class="logo-container">
-                    <div class="logo-glow"></div>
-                    <img src="assets/img/aldlma.png" alt="الدلما" class="logo-image">
-                </div>
-                
-                <!-- Main Title -->
-                <h1 class="main-title">الدلما... زرعها طيب، وخيرها باقٍ</h1>
-                
-                <!-- Description -->
-                <p class="description">
-                    الدلما منصة مجتمعية تقنية تربطك بخدمات مدينتك، من أهل عرعر إلى أهلها، نوصلك بالأفضل… بضغطة زر.
-                </p>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <img src="assets/img/aldlma.png" alt="الدلما" class="logo">
+            <div class="header-text">
+                <h1>الدلما AI</h1>
+                <p>محادثة ذكية مع الذكاء الاصطناعي</p>
             </div>
-        </header>
-        
-        <!-- Chat Container -->
-        <div class="chat-wrapper">
-            <div class="chat-container">
-                <!-- Messages Area -->
-                <div class="messages" id="messages">
-                    <!-- Welcome Message -->
-                    <div class="message bot-message welcome-message">
-                        <div class="message-avatar bot-avatar">
-                            <i class="fas fa-robot"></i>
-                        </div>
-                        <div class="message-content">
-                            <div class="message-text">
-                                <h3>مرحباً بك في الدلما AI! 👋</h3>
-                                <p>أنا مساعدك الذكي من منصة الدلما. يمكنني مساعدتك في:</p>
-                                <ul>
-                                    <li>✨ الإجابة على أسئلتك</li>
-                                    <li>🖼️ تحليل الصور (حتى 10 صور)</li>
-                                    <li>💡 تقديم الاقتراحات</li>
-                                    <li>🌊 معلومات عن الدلما</li>
-                                </ul>
-                                <p class="welcome-cta">كيف يمكنني مساعدتك اليوم؟</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Typing Indicator -->
-                <div class="typing-indicator" id="typing-indicator">
-                    <div class="message-avatar bot-avatar">
-                        <i class="fas fa-robot"></i>
-                    </div>
-                    <div class="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-                
-                <!-- Input Area -->
-                <div class="input-area">
-                    <!-- Image Preview -->
-                    <div class="image-preview-container" id="image-preview-container"></div>
-                    
-                    <!-- Input Form -->
-                    <form class="input-form" id="chat-form">
-                        <button type="button" class="attach-btn" id="attach-btn" aria-label="إرفاق صور">
-                            <i class="fas fa-image"></i>
-                            <span class="image-count" id="image-count">0</span>
-                        </button>
-                        <input 
-                            type="file" 
-                            id="file-input" 
-                            multiple 
-                            accept="image/*" 
-                            style="display: none;"
-                            max="10"
-                        >
-                        <textarea 
-                            class="message-input" 
-                            id="message-input" 
-                            placeholder="اكتب رسالتك هنا..."
-                            rows="1"
-                        ></textarea>
-                        <button type="submit" class="send-btn" id="send-btn" aria-label="إرسال">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
-                    
-                    <!-- Status Bar -->
-                    <div class="status-bar">
-                        <span class="status-text" id="status-text">جاهز</span>
-                        <span class="connection-indicator" id="connection-indicator">
-                            <i class="fas fa-circle"></i> متصل
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <button class="theme-toggle" id="theme-toggle" aria-label="تبديل الوضع">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Chat Container -->
+    <main class="chat-container" id="chat-container">
+        <div class="messages" id="messages">
+            <!-- Messages will be inserted here -->
         </div>
         
-        <!-- Footer - مطابق لتطبيق الدلما -->
-        <footer class="footer">
-            <img src="assets/img/logo_karmar.png" alt="كارمار" class="karmar-logo">
-            <p class="copyright">حقوق الطبع محفوظة لشركة كارمار</p>
-            <div class="made-with-love">
-                <span>صُنع بـ</span>
-                <i class="fas fa-heart"></i>
-            </div>
-        </footer>
-    </div>
-    
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-spinner">
-            <div class="spinner-ring"></div>
-            <div class="spinner-ring"></div>
-            <div class="spinner-ring"></div>
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
         </div>
-        <p class="loading-text">جاري المعالجة...</p>
+    </main>
+
+    <!-- Input Area -->
+    <div class="input-area">
+        <div class="input-wrapper">
+            <button class="image-btn" id="image-btn" aria-label="إرفاق صور">
+                <i class="fas fa-image"></i>
+            </button>
+            <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+            
+            <div class="image-preview" id="image-preview"></div>
+            
+            <textarea 
+                id="message-input" 
+                class="message-input" 
+                placeholder="اكتب رسالتك هنا..." 
+                rows="1"
+            ></textarea>
+            
+            <button class="send-btn" id="send-btn" aria-label="إرسال">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
     </div>
-    
+
+    <!-- Footer -->
+    <footer class="footer">
+        <img src="assets/img/logo_karmar.png" alt="Karmar" class="footer-logo">
+        <p>&copy; 2025 Karmar Company. جميع الحقوق محفوظة.</p>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>
-

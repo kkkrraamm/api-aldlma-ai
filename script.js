@@ -1,628 +1,416 @@
-// ═══════════════════════════════════════════════════════════
-// 🤖 الدلما AI - المنطق الرئيسي
-// ═══════════════════════════════════════════════════════════
-
-// ─────────────────────────────────────────────────────────── 
-// 🌐 API Configuration
-// ─────────────────────────────────────────────────────────── 
-// استخدم نفس الدومين إذا كان Backend على نفس Render service
-const API_URL = window.location.hostname.includes('localhost') 
-    ? 'http://localhost:3000' 
-    : 'https://dalma-ai-backend.onrender.com'; // رابط Backend الخاص بك
-
-// ─────────────────────────────────────────────────────────── 
-// 🎨 State Management
-// ─────────────────────────────────────────────────────────── 
-const state = {
-    theme: localStorage.getItem('theme') || 'light',
-    selectedImages: [],
-    isProcessing: false,
-    chatMessages: [] // {role:'user'|'bot', content:string, images?: string[]}
+// ========================================
+// Configuration
+// ========================================
+const CONFIG = {
+    API_URL: 'https://dalma-ai-backend.onrender.com/chat',
+    MAX_IMAGES: 10,
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000,
+    STORAGE_KEY: 'dalma_chat_history'
 };
 
-// ─────────────────────────────────────────────────────────── 
-// 🎯 DOM Elements
-// ─────────────────────────────────────────────────────────── 
+// ========================================
+// State Management
+// ========================================
+const state = {
+    selectedImages: [],
+    isLoading: false,
+    currentTheme: localStorage.getItem('theme') || 'day',
+    chatHistory: []
+};
+
+// ========================================
+// DOM Elements
+// ========================================
 const elements = {
-    themeToggle: document.getElementById('theme-toggle'),
-    messages: document.getElementById('messages'),
-    chatForm: document.getElementById('chat-form'),
+    messagesContainer: document.getElementById('messages'),
+    chatContainer: document.getElementById('chat-container'),
     messageInput: document.getElementById('message-input'),
     sendBtn: document.getElementById('send-btn'),
-    attachBtn: document.getElementById('attach-btn'),
+    imageBtn: document.getElementById('image-btn'),
     fileInput: document.getElementById('file-input'),
-    imagePreviewContainer: document.getElementById('image-preview-container'),
-    imageCount: document.getElementById('image-count'),
+    imagePreview: document.getElementById('image-preview'),
     typingIndicator: document.getElementById('typing-indicator'),
-    statusText: document.getElementById('status-text'),
-    loadingOverlay: document.getElementById('loading-overlay')
+    themeToggle: document.getElementById('theme-toggle')
 };
 
-// ─────────────────────────────────────────────────────────── 
-// 💾 Chat Persistence (LocalStorage)
-// ─────────────────────────────────────────────────────────── 
-const CHAT_STORAGE_KEY = 'dalma_chat_history_v1';
-
-function loadChatHistory() {
-    try {
-        const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-        if (!raw) return;
-        const arr = JSON.parse(raw);
-        if (!Array.isArray(arr)) return;
-        state.chatMessages = arr;
-        // إذا كانت هناك رسالة ترحيبية فقط، احذفها ثم ابنِ التاريخ
-        const welcome = elements.messages.querySelector('.welcome-message');
-        const hasOther = elements.messages.querySelectorAll('.message').length > 1;
-        if (welcome && !hasOther) welcome.remove();
-        // أضف التاريخ فقط إن لم تكن موجودة مسبقاً في DOM
-        if (!hasOther) {
-            for (const msg of state.chatMessages) {
-                addMessage(
-                    msg.content,
-                    msg.role === 'user',
-                    msg.images || [],
-                    /*persist*/ false,
-                    /*animate*/ false
-                );
-            }
-        }
-    } catch (_) { /* ignore */ }
-}
-
-function persistMessage(role, content, images = []) {
-    state.chatMessages.push({ role, content, images });
-    // Keep last 200 messages max
-    if (state.chatMessages.length > 200) {
-        state.chatMessages = state.chatMessages.slice(-200);
-    }
-    try {
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.chatMessages));
-    } catch (_) { /* ignore */ }
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🎨 Theme Management
-// ─────────────────────────────────────────────────────────── 
-function initTheme() {
-    document.documentElement.setAttribute('data-theme', state.theme);
-    updateThemeIcon();
-}
-
-function toggleTheme() {
-    state.theme = state.theme === 'light' ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', state.theme);
-    localStorage.setItem('theme', state.theme);
-    updateThemeIcon();
-    
-    // Animate theme toggle
-    gsap.from('body', {
-        opacity: 0.8,
-        duration: 0.3,
-        ease: 'power2.inOut'
-    });
-}
-
-function updateThemeIcon() {
-    const icon = elements.themeToggle.querySelector('i');
-    icon.className = state.theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🌌 3D Background with Three.js
-// ─────────────────────────────────────────────────────────── 
-function init3DBackground() {
-    const canvas = document.getElementById('bg-canvas');
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-    
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.position.z = 5;
-    
-    // Create particles
-    const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 800;
-    const posArray = new Float32Array(particlesCount * 3);
-    
-    for (let i = 0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 10;
-    }
-    
-    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    
-    const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.02,
-        color: state.theme === 'light' ? 0x10B981 : 0x10B981,
-        transparent: true,
-        opacity: 0.8
-    });
-    
-    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particlesMesh);
-    
-    // Create geometric shapes
-    const torusGeometry = new THREE.TorusGeometry(1, 0.2, 16, 100);
-    const torusMaterial = new THREE.MeshBasicMaterial({
-        color: 0x10B981,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.2
-    });
-    const torus = new THREE.Mesh(torusGeometry, torusMaterial);
-    torus.position.set(-3, 2, -2);
-    scene.add(torus);
-    
-    const sphereGeometry = new THREE.SphereGeometry(0.8, 32, 32);
-    const sphereMaterial = new THREE.MeshBasicMaterial({
-        color: 0xFBBF24,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.15
-    });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.set(3, -1, -3);
-    scene.add(sphere);
-    
-    // Animation loop
-    function animate() {
-        requestAnimationFrame(animate);
-        
-        particlesMesh.rotation.y += 0.001;
-        particlesMesh.rotation.x += 0.0005;
-        
-        torus.rotation.x += 0.005;
-        torus.rotation.y += 0.003;
-        
-        sphere.rotation.x += 0.003;
-        sphere.rotation.y += 0.005;
-        
-        renderer.render(scene, camera);
-    }
-    
-    animate();
-    
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-    
-    // Update colors on theme change
-    const originalToggle = toggleTheme;
-    window.toggleTheme = function() {
-        originalToggle();
-        particlesMaterial.color.setHex(state.theme === 'light' ? 0x10B981 : 0x10B981);
-    };
-}
-
-// ─────────────────────────────────────────────────────────── 
-// ✨ Create Floating Particles
-// ─────────────────────────────────────────────────────────── 
-function createFloatingParticles() {
-    const particlesContainer = document.getElementById('particles');
-    const particleCount = 30;
-    
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.style.left = `${Math.random() * 100}%`;
-        particle.style.top = `${Math.random() * 100}%`;
-        particle.style.animationDelay = `${Math.random() * 15}s`;
-        particle.style.animationDuration = `${15 + Math.random() * 10}s`;
-        particlesContainer.appendChild(particle);
-    }
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 📸 Image Handling
-// ─────────────────────────────────────────────────────────── 
-function handleFileSelect(event) {
-    const files = Array.from(event.target.files);
-    
-    // Check total count
-    if (state.selectedImages.length + files.length > 10) {
-        showNotification('لا يمكن رفع أكثر من 10 صور', 'error');
-        return;
-    }
-    
-    files.forEach(file => {
-        if (!file.type.startsWith('image/')) {
-            showNotification('يرجى اختيار صور فقط', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            state.selectedImages.push({
-                file: file,
-                dataUrl: e.target.result
-            });
-            updateImagePreview();
-        };
-        reader.readAsDataURL(file);
-    });
-    
-    // Reset file input
-    event.target.value = '';
-}
-
-function updateImagePreview() {
-    const container = elements.imagePreviewContainer;
-    const count = elements.imageCount;
-    
-    if (state.selectedImages.length === 0) {
-        container.classList.remove('active');
-        count.classList.remove('active');
-        return;
-    }
-    
-    container.classList.add('active');
-    count.classList.add('active');
-    count.textContent = state.selectedImages.length;
-    
-    container.innerHTML = state.selectedImages.map((img, index) => `
-        <div class="image-preview">
-            <img src="${img.dataUrl}" alt="صورة ${index + 1}">
-            <button class="image-preview-remove" onclick="removeImage(${index})" aria-label="حذف">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `).join('');
-}
-
-function removeImage(index) {
-    state.selectedImages.splice(index, 1);
-    updateImagePreview();
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 💬 Message Handling
-// ─────────────────────────────────────────────────────────── 
-function addMessage(content, isUser = false, images = [], persist = true, animate = true) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-    
-    let imagesHtml = '';
-    if (images.length > 0) {
-        imagesHtml = `
-            <div class="message-images">
-                ${images.map(img => `<img src="${img}" alt="صورة" class="message-image">`).join('')}
-            </div>
-        `;
-    }
-    
-    messageDiv.innerHTML = `
-        <div class="message-avatar ${isUser ? 'user-avatar' : 'bot-avatar'}">
-            <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
-        </div>
-        <div class="message-content">
-            <div class="message-text">${formatMessage(content)}</div>
-            ${imagesHtml}
-        </div>
-    `;
-    
-    elements.messages.appendChild(messageDiv);
-    scrollToBottom();
-    
-    // Animate message (تخطي الأنيميشن عند استرجاع السجل)
-    // ألغ الأنيميشن مؤقتاً بناء على طلب المستخدم
-    // يمكن إعادة تفعيله لاحقاً من إعدادات متقدمة
-
-    // Persist
-    if (persist) {
-        persistMessage(isUser ? 'user' : 'bot', content, images);
-    }
-}
-
-function formatMessage(text) {
-    // Convert markdown-like formatting
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    text = text.replace(/\n/g, '<br>');
-    return text;
-}
-
-function scrollToBottom() {
-    // Smooth scroll to the very bottom; schedule to ensure layout is updated
-    requestAnimationFrame(() => {
-        elements.messages.scrollTop = elements.messages.scrollHeight + 1000;
-    });
-}
-
-function showTypingIndicator() {
-    elements.typingIndicator.classList.add('active');
-    scrollToBottom();
-}
-
-function hideTypingIndicator() {
-    elements.typingIndicator.classList.remove('active');
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🌐 API Communication
-// ─────────────────────────────────────────────────────────── 
-async function sendMessageToAPI(message, images = []) {
-    try {
-        // Prepare FormData for multipart/form-data
-        const formData = new FormData();
-        formData.append('message', message);
-        
-        // Add images if any
-        images.forEach((img, index) => {
-            formData.append('images', img.file);
-        });
-        
-        // Show loading
-        showTypingIndicator();
-        updateStatus('جاري الإرسال...');
-        
-        // Log request details
-        console.log('📤 [REQUEST] Sending to:', `${API_URL}/chat`);
-        console.log('📤 [REQUEST] Message:', message);
-        console.log('📤 [REQUEST] Images:', images.length);
-        
-        // Send request to API
-        const response = await fetch(`${API_URL}/chat`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: formData
-        });
-        
-        console.log('📥 [RESPONSE] Status:', response.status);
-        console.log('📥 [RESPONSE] OK:', response.ok);
-        
-        if (!response.ok) {
-            // Try to read error message from response
-            let errorMessage = `خطأ في الاتصال: ${response.status}`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorData.message || errorMessage;
-            } catch (e) {
-                // If JSON parsing fails, use status text
-                errorMessage = `${response.status}: ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
-        }
-        
-        // Respect content-type; avoid rendering HTML
-        const contentType = (response.headers.get('content-type') || '').toLowerCase();
-        let text = '';
-        let data;
-        if (contentType.includes('application/json')) {
-            // Read as text then parse to be resilient
-            text = await response.text();
-            if (!text) throw new Error('لم يتم استلام رد من الخادم (empty response)');
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('❌ JSON Parse Error:', text);
-                throw new Error('خطأ في تحليل رد الخادم');
-            }
-        } else {
-            // Non-JSON: don't show it to user (likely HTML fallback)
-            text = await response.text();
-            console.warn('⚠️ NON-JSON response preview:', text.slice(0, 200));
-            throw new Error('الخادم أعاد رداً غير متوقع، حاول لاحقاً');
-        }
-        
-        // Hide typing indicator
-        hideTypingIndicator();
-        updateStatus('جاهز');
-        
-        // Normalize bot reply shape (server may return different keys)
-        let botReply = null;
-        if (data && typeof data === 'object') {
-            botReply = data.response
-              ?? data.output_text
-              ?? (Array.isArray(data.output) ? (data.output[0]?.content?.[0]?.text || null) : null);
-        }
-        if (!botReply || typeof botReply !== 'string') {
-            // fallback to raw text if available
-            botReply = text && typeof text === 'string' ? text : null;
-        }
-        
-        if (botReply) {
-            addMessage(botReply, false);
-        } else {
-            throw new Error('لم يتم استلام رد من الخادم');
-        }
-        
-    } catch (error) {
-        console.error('خطأ في إرسال الرسالة:', error);
-        hideTypingIndicator();
-        updateStatus('خطأ في الاتصال');
-
-        // أظهر رسالة الخطأ كفقاعة منفصلة دون إزالة آخر رسالة للمستخدم
-        addMessage(`عذراً، حدث خطأ في الاتصال: ${error.message}`, false);
-    }
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 📝 Form Handling
-// ─────────────────────────────────────────────────────────── 
-async function handleSubmit(event) {
-    event.preventDefault();
-    
-    const message = elements.messageInput.value.trim();
-    const images = [...state.selectedImages];
-    
-    // Validate input
-    if (!message && images.length === 0) {
-        showNotification('يرجى كتابة رسالة أو إرفاق صور', 'error');
-        return;
-    }
-    
-    if (state.isProcessing) {
-        return;
-    }
-    
-    state.isProcessing = true;
-    elements.sendBtn.disabled = true;
-    
-    // Add user message
-    const imageUrls = images.map(img => img.dataUrl);
-    addMessage(message || '(صور مرفقة)', true, imageUrls);
-    
-    // Clear input (without losing focus on mobile)
-    elements.messageInput.value = '';
-    state.selectedImages = [];
-    updateImagePreview();
-    autoResizeTextarea();
-    
-    // Send to API
-    await sendMessageToAPI(message, images);
-    
-    state.isProcessing = false;
-    elements.sendBtn.disabled = false;
-    elements.messageInput.focus();
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🎯 Textarea Auto-resize
-// ─────────────────────────────────────────────────────────── 
-function autoResizeTextarea() {
-    const textarea = elements.messageInput;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🔔 Notifications
-// ─────────────────────────────────────────────────────────── 
-function showNotification(message, type = 'info') {
-    updateStatus(message);
-    
-    // Reset after 3 seconds
-    setTimeout(() => {
-        updateStatus('جاهز');
-    }, 3000);
-}
-
-function updateStatus(text) {
-    elements.statusText.textContent = text;
-    
-    // Animate
-    gsap.from(elements.statusText, {
-        opacity: 0,
-        y: -10,
-        duration: 0.3
-    });
-}
-
-// ─────────────────────────────────────────────────────────── 
-// ⏳ Loading Overlay
-// ─────────────────────────────────────────────────────────── 
-function showLoading() {
-    elements.loadingOverlay.classList.add('active');
-}
-
-function hideLoading() {
-    elements.loadingOverlay.classList.remove('active');
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🎮 Event Listeners
-// ─────────────────────────────────────────────────────────── 
-function initEventListeners() {
-    // Theme toggle
-    elements.themeToggle.addEventListener('click', toggleTheme);
-    
-    // Footer - Link to Karmar website
-    const footer = document.querySelector('.footer');
-    if (footer) {
-        footer.addEventListener('click', () => {
-            window.open('https://karmar-sa.com', '_blank');
-        });
-    }
-    
-    // Form submit
-    elements.chatForm.addEventListener('submit', handleSubmit);
-    
-    // Message input
-    elements.messageInput.addEventListener('input', autoResizeTextarea);
-    elements.messageInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit(e);
-        }
-    });
-    
-    // Attach button
-    elements.attachBtn.addEventListener('click', () => {
-        elements.fileInput.click();
-    });
-    
-    // File input
-    elements.fileInput.addEventListener('change', handleFileSelect);
-    
-    // Drag and drop for images
-    const chatContainer = document.querySelector('.chat-container');
-    
-    chatContainer.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        chatContainer.style.borderColor = 'var(--color-primary)';
-    });
-    
-    chatContainer.addEventListener('dragleave', () => {
-        chatContainer.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-    });
-    
-    chatContainer.addEventListener('drop', (e) => {
-        e.preventDefault();
-        chatContainer.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-        
-        const files = Array.from(e.dataTransfer.files);
-        const imageFiles = files.filter(file => file.type.startsWith('image/'));
-        
-        if (imageFiles.length > 0) {
-            elements.fileInput.files = e.dataTransfer.files;
-            handleFileSelect({ target: { files: imageFiles, value: '' } });
-        }
-    });
-}
-
-// ─────────────────────────────────────────────────────────── 
-// 🚀 Initialize Application
-// ─────────────────────────────────────────────────────────── 
+// ========================================
+// Initialization
+// ========================================
 function init() {
     console.log('🌊 الدلما AI - تهيئة التطبيق...');
     
     // Initialize theme
     initTheme();
     
-    // Initialize 3D background
-    init3DBackground();
-    
-    // Create floating particles
-    createFloatingParticles();
-    
-    // Initialize event listeners
-    initEventListeners();
-    
-    // Focus on input
-    elements.messageInput.focus();
-
-    // Load chat history last
+    // Load chat history
     loadChatHistory();
+    
+    // Show welcome if no history
+    if (state.chatHistory.length === 0) {
+        showWelcomeMessage();
+    }
+    
+    // Event listeners
+    setupEventListeners();
+    
+    // Auto-resize textarea
+    autoResizeTextarea();
     
     console.log('✅ التطبيق جاهز!');
 }
 
-// ─────────────────────────────────────────────────────────── 
-// 🎬 Start Application
-// ─────────────────────────────────────────────────────────── 
-// Wait for DOM to be ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+// ========================================
+// Event Listeners
+// ========================================
+function setupEventListeners() {
+    // Send message
+    elements.sendBtn.addEventListener('click', handleSubmit);
+    
+    // Enter to send (Shift+Enter for new line)
+    elements.messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
+        }
+    });
+    
+    // Auto-resize on input
+    elements.messageInput.addEventListener('input', autoResizeTextarea);
+    
+    // Image selection
+    elements.imageBtn.addEventListener('click', () => elements.fileInput.click());
+    elements.fileInput.addEventListener('change', handleFileSelect);
+    
+    // Theme toggle
+    elements.themeToggle.addEventListener('click', toggleTheme);
 }
 
-// Make removeImage available globally
-window.removeImage = removeImage;
-window.toggleTheme = toggleTheme;
+// ========================================
+// Theme Management
+// ========================================
+function initTheme() {
+    document.documentElement.setAttribute('data-theme', state.currentTheme);
+    updateThemeIcon();
+}
 
+function toggleTheme() {
+    state.currentTheme = state.currentTheme === 'day' ? 'night' : 'day';
+    document.documentElement.setAttribute('data-theme', state.currentTheme);
+    localStorage.setItem('theme', state.currentTheme);
+    updateThemeIcon();
+}
+
+function updateThemeIcon() {
+    const icon = elements.themeToggle.querySelector('i');
+    icon.className = state.currentTheme === 'day' ? 'fas fa-moon' : 'fas fa-sun';
+}
+
+// ========================================
+// Chat History Management
+// ========================================
+function loadChatHistory() {
+    try {
+        const saved = localStorage.getItem(CONFIG.STORAGE_KEY);
+        if (saved) {
+            state.chatHistory = JSON.parse(saved);
+            renderChatHistory();
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل المحادثات:', error);
+    }
+}
+
+function saveChatHistory() {
+    try {
+        localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(state.chatHistory));
+    } catch (error) {
+        console.error('خطأ في حفظ المحادثات:', error);
+    }
+}
+
+function renderChatHistory() {
+    elements.messagesContainer.innerHTML = '';
+    state.chatHistory.forEach(msg => {
+        addMessageToDOM(msg.role, msg.content, msg.images, msg.timestamp, false);
+    });
+    scrollToBottom();
+}
+
+function clearWelcomeMessage() {
+    const welcome = elements.messagesContainer.querySelector('.welcome-message');
+    if (welcome) {
+        welcome.remove();
+    }
+}
+
+// ========================================
+// Welcome Message
+// ========================================
+function showWelcomeMessage() {
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'welcome-message';
+    welcomeDiv.innerHTML = `
+        <h2>مرحباً بك في الدلما AI</h2>
+        <p>كيف يمكنني مساعدتك اليوم؟</p>
+    `;
+    elements.messagesContainer.appendChild(welcomeDiv);
+}
+
+// ========================================
+// Message Handling
+// ========================================
+async function handleSubmit() {
+    const message = elements.messageInput.value.trim();
+    
+    if (!message && state.selectedImages.length === 0) {
+        return;
+    }
+    
+    if (state.isLoading) {
+        return;
+    }
+    
+    // Clear welcome on first message
+    clearWelcomeMessage();
+    
+    // Add user message
+    const userMessage = {
+        role: 'user',
+        content: message,
+        images: [...state.selectedImages],
+        timestamp: Date.now()
+    };
+    
+    state.chatHistory.push(userMessage);
+    saveChatHistory();
+    addMessageToDOM('user', message, state.selectedImages, Date.now());
+    
+    // Clear input
+    elements.messageInput.value = '';
+    state.selectedImages = [];
+    elements.imagePreview.innerHTML = '';
+    autoResizeTextarea();
+    
+    // Show typing indicator
+    showTypingIndicator();
+    scrollToBottom();
+    
+    // Send to API
+    try {
+        state.isLoading = true;
+        elements.sendBtn.disabled = true;
+        
+        const response = await sendMessageToAPI(message, userMessage.images);
+        
+        // Add bot response
+        const botMessage = {
+            role: 'bot',
+            content: response,
+            images: [],
+            timestamp: Date.now()
+        };
+        
+        state.chatHistory.push(botMessage);
+        saveChatHistory();
+        addMessageToDOM('bot', response, [], Date.now());
+        
+    } catch (error) {
+        console.error('خطأ في إرسال الرسالة:', error);
+        addMessageToDOM('bot', 'عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.', [], Date.now(), true);
+    } finally {
+        hideTypingIndicator();
+        state.isLoading = false;
+        elements.sendBtn.disabled = false;
+        elements.messageInput.focus();
+        scrollToBottom();
+    }
+}
+
+// ========================================
+// API Communication
+// ========================================
+async function sendMessageToAPI(message, images, retryCount = 0) {
+    try {
+        const formData = new FormData();
+        formData.append('message', message);
+        
+        // Add images if any
+        for (let i = 0; i < images.length; i++) {
+            const response = await fetch(images[i]);
+            const blob = await response.blob();
+            formData.append('images', blob, `image_${i}.jpg`);
+        }
+        
+        const response = await fetch(CONFIG.API_URL, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.reply || data.message || 'لا يوجد رد';
+        
+    } catch (error) {
+        console.error(`❌ [API ERROR] Attempt ${retryCount + 1}:`, error);
+        
+        if (retryCount < CONFIG.MAX_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+            return sendMessageToAPI(message, images, retryCount + 1);
+        }
+        
+        throw error;
+    }
+}
+
+// ========================================
+// DOM Message Rendering
+// ========================================
+function addMessageToDOM(role, content, images = [], timestamp = Date.now(), isError = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}`;
+    
+    // Avatar
+    const avatarDiv = document.createElement('div');
+    avatarDiv.className = 'message-avatar';
+    avatarDiv.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+    
+    // Content
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    if (isError) {
+        contentDiv.classList.add('error-message');
+    }
+    
+    // Text
+    if (content) {
+        const textDiv = document.createElement('div');
+        textDiv.className = 'message-text';
+        textDiv.textContent = content;
+        contentDiv.appendChild(textDiv);
+    }
+    
+    // Images
+    if (images && images.length > 0) {
+        const imagesDiv = document.createElement('div');
+        imagesDiv.className = 'message-images';
+        images.forEach(imgSrc => {
+            const img = document.createElement('img');
+            img.src = imgSrc;
+            img.className = 'message-image';
+            img.alt = 'صورة';
+            img.loading = 'lazy';
+            imagesDiv.appendChild(img);
+        });
+        contentDiv.appendChild(imagesDiv);
+    }
+    
+    // Timestamp
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'message-time';
+    timeDiv.textContent = formatTime(timestamp);
+    contentDiv.appendChild(timeDiv);
+    
+    messageDiv.appendChild(avatarDiv);
+    messageDiv.appendChild(contentDiv);
+    
+    elements.messagesContainer.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+// ========================================
+// Typing Indicator
+// ========================================
+function showTypingIndicator() {
+    elements.typingIndicator.style.display = 'flex';
+    scrollToBottom();
+}
+
+function hideTypingIndicator() {
+    elements.typingIndicator.style.display = 'none';
+}
+
+// ========================================
+// Image Handling
+// ========================================
+function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    
+    if (state.selectedImages.length + files.length > CONFIG.MAX_IMAGES) {
+        alert(`يمكنك رفع ${CONFIG.MAX_IMAGES} صور كحد أقصى`);
+        return;
+    }
+    
+    files.forEach(file => {
+        if (!file.type.startsWith('image/')) {
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            state.selectedImages.push(e.target.result);
+            renderImagePreview();
+        };
+        reader.readAsDataURL(file);
+    });
+    
+    // Reset input
+    event.target.value = '';
+}
+
+function renderImagePreview() {
+    elements.imagePreview.innerHTML = '';
+    
+    state.selectedImages.forEach((imgSrc, index) => {
+        const previewItem = document.createElement('div');
+        previewItem.className = 'preview-item';
+        
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = `صورة ${index + 1}`;
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'preview-remove';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.onclick = () => removeImage(index);
+        
+        previewItem.appendChild(img);
+        previewItem.appendChild(removeBtn);
+        elements.imagePreview.appendChild(previewItem);
+    });
+}
+
+function removeImage(index) {
+    state.selectedImages.splice(index, 1);
+    renderImagePreview();
+}
+
+// ========================================
+// Utility Functions
+// ========================================
+function autoResizeTextarea() {
+    const textarea = elements.messageInput;
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+function scrollToBottom() {
+    requestAnimationFrame(() => {
+        elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+    });
+}
+
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
+// ========================================
+// Start Application
+// ========================================
+document.addEventListener('DOMContentLoaded', init);
