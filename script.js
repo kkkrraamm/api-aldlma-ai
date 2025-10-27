@@ -21,35 +21,6 @@ const state = {
 };
 
 // ─────────────────────────────────────────────────────────── 
-// 🔊 UI Sounds & Haptics
-// ─────────────────────────────────────────────────────────── 
-const soundState = { enabled: true, ctx: null };
-
-function playUiSound(kind = 'send') {
-    if (!soundState.enabled) return;
-    try {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return;
-        const ctx = soundState.ctx || new Ctx();
-        soundState.ctx = ctx;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = kind === 'send' ? 740 : 520; // send: أعلى، receive: أخفض
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const now = ctx.currentTime;
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-        osc.start(now);
-        osc.stop(now + 0.13);
-        // Haptics
-        if (navigator.vibrate) navigator.vibrate(kind === 'send' ? 8 : [12, 20, 12]);
-    } catch (_) { /* ignore */ }
-}
-
-// ─────────────────────────────────────────────────────────── 
 // 🎯 DOM Elements
 // ─────────────────────────────────────────────────────────── 
 const elements = {
@@ -333,20 +304,10 @@ function addMessage(content, isUser = false, images = [], persist = true, animat
     
     elements.messages.appendChild(messageDiv);
     scrollToBottom();
-
-    // Play sound
-    playUiSound(isUser ? 'send' : 'receive');
     
     // Animate message (تخطي الأنيميشن عند استرجاع السجل)
-    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (animate && !reduceMotion && typeof gsap !== 'undefined') {
-        gsap.from(messageDiv, {
-            opacity: 0,
-            x: isUser ? 20 : -20,
-            duration: 0.35,
-            ease: 'power2.out'
-        });
-    }
+    // ألغ الأنيميشن مؤقتاً بناء على طلب المستخدم
+    // يمكن إعادة تفعيله لاحقاً من إعدادات متقدمة
 
     // Persist
     if (persist) {
