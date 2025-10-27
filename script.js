@@ -57,7 +57,13 @@ function loadChatHistory() {
         // أضف التاريخ فقط إن لم تكن موجودة مسبقاً في DOM
         if (!hasOther) {
             for (const msg of state.chatMessages) {
-                addMessage(msg.content, msg.role === 'user', msg.images || [], /*persist*/ false);
+                addMessage(
+                    msg.content,
+                    msg.role === 'user',
+                    msg.images || [],
+                    /*persist*/ false,
+                    /*animate*/ false
+                );
             }
         }
     } catch (_) { /* ignore */ }
@@ -273,7 +279,7 @@ function removeImage(index) {
 // ─────────────────────────────────────────────────────────── 
 // 💬 Message Handling
 // ─────────────────────────────────────────────────────────── 
-function addMessage(content, isUser = false, images = [], persist = true) {
+function addMessage(content, isUser = false, images = [], persist = true, animate = true) {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
     
@@ -299,13 +305,16 @@ function addMessage(content, isUser = false, images = [], persist = true) {
     elements.messages.appendChild(messageDiv);
     scrollToBottom();
     
-    // Animate message
-    gsap.from(messageDiv, {
-        opacity: 0,
-        x: isUser ? 20 : -20,
-        duration: 0.4,
-        ease: 'power2.out'
-    });
+    // Animate message (تخطي الأنيميشن عند استرجاع السجل)
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (animate && !reduceMotion && typeof gsap !== 'undefined') {
+        gsap.from(messageDiv, {
+            opacity: 0,
+            x: isUser ? 20 : -20,
+            duration: 0.35,
+            ease: 'power2.out'
+        });
+    }
 
     // Persist
     if (persist) {
