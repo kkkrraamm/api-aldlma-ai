@@ -8,7 +8,7 @@
 // استخدم نفس الدومين إذا كان Backend على نفس Render service
 const API_URL = window.location.hostname.includes('localhost') 
     ? 'http://localhost:3000' 
-    : 'https://api-aldlma-ai-1.onrender.com'; // رابط Backend الخاص بك
+    : 'https://dalma-ai-backend.onrender.com'; // رابط Backend الخاص بك
 
 // ─────────────────────────────────────────────────────────── 
 // 🎨 State Management
