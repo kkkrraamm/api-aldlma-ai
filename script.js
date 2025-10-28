@@ -30,6 +30,9 @@ function init() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
     
+    // Initialize 3D Background
+    init3DBackground();
+    
     // Load chat history
     loadHistory();
     
@@ -49,6 +52,125 @@ function init() {
     console.log('✅ جاهز!');
 }
 
+// ==================== 3D Background ==================== 
+function init3DBackground() {
+    const canvas = document.getElementById('bg-canvas');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    camera.position.z = 5;
+    
+    // Get theme colors
+    const isDark = document.documentElement.getAttribute('data-theme') === 'night';
+    const primaryColor = isDark ? 0x10B981 : 0x10B981;
+    const secondaryColor = isDark ? 0x0F172A : 0xFEF3E2;
+    
+    // Create particles (stars/dots)
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlesCount = 800;
+    const posArray = new Float32Array(particlesCount * 3);
+    
+    for(let i = 0; i < particlesCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 15;
+    }
+    
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particlesMaterial = new THREE.PointsMaterial({
+        size: 0.02,
+        color: primaryColor,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+    });
+    
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(particlesMesh);
+    
+    // Create waves (rings)
+    const waves = [];
+    for(let i = 0; i < 3; i++) {
+        const geometry = new THREE.TorusGeometry(2 + i * 0.8, 0.02, 16, 100);
+        const material = new THREE.MeshBasicMaterial({
+            color: primaryColor,
+            transparent: true,
+            opacity: 0.3 - i * 0.1,
+            wireframe: true
+        });
+        const wave = new THREE.Mesh(geometry, material);
+        wave.rotation.x = Math.PI / 2;
+        wave.position.z = -3 - i * 2;
+        scene.add(wave);
+        waves.push(wave);
+    }
+    
+    // Create floating spheres
+    const spheres = [];
+    for(let i = 0; i < 5; i++) {
+        const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+        const material = new THREE.MeshBasicMaterial({
+            color: primaryColor,
+            transparent: true,
+            opacity: 0.4,
+            wireframe: true
+        });
+        const sphere = new THREE.Mesh(geometry, material);
+        sphere.position.set(
+            (Math.random() - 0.5) * 8,
+            (Math.random() - 0.5) * 8,
+            (Math.random() - 0.5) * 5
+        );
+        scene.add(sphere);
+        spheres.push(sphere);
+    }
+    
+    // Animation
+    let time = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        time += 0.001;
+        
+        // Rotate particles slowly
+        particlesMesh.rotation.y = time * 0.2;
+        particlesMesh.rotation.x = time * 0.1;
+        
+        // Animate waves
+        waves.forEach((wave, i) => {
+            wave.rotation.z = time * (0.3 + i * 0.1);
+            wave.position.z = -3 - i * 2 + Math.sin(time * 2 + i) * 0.5;
+        });
+        
+        // Float spheres
+        spheres.forEach((sphere, i) => {
+            sphere.position.y += Math.sin(time * 2 + i) * 0.002;
+            sphere.rotation.x += 0.01;
+            sphere.rotation.y += 0.01;
+        });
+        
+        renderer.render(scene, camera);
+    }
+    
+    animate();
+    
+    // Handle resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    // Update colors on theme change
+    window.addEventListener('themeChanged', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'night';
+        const newColor = isDark ? 0x10B981 : 0x10B981;
+        particlesMaterial.color.setHex(newColor);
+        waves.forEach(wave => wave.material.color.setHex(newColor));
+        spheres.forEach(sphere => sphere.material.color.setHex(newColor));
+    });
+}
+
 // ==================== Theme ====================
 function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme');
@@ -56,6 +178,9 @@ function toggleTheme() {
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
     updateThemeIcon(newTheme);
+    
+    // Trigger theme change event for 3D background
+    window.dispatchEvent(new Event('themeChanged'));
 }
 
 function updateThemeIcon(theme) {
