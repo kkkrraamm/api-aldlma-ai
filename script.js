@@ -30,9 +30,19 @@ function init() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
     
-    // Initialize 3D Background (disabled temporarily due to CDN loading issues)
-    // The website works perfectly without it!
-    console.log('ℹ️ 3D Background disabled for faster loading');
+    // Initialize 3D Background with local libraries
+    setTimeout(() => {
+        if (typeof THREE !== 'undefined' && typeof gsap !== 'undefined') {
+            try {
+                init3DBackground();
+                console.log('✅ 3D Background initialized!');
+            } catch(e) {
+                console.warn('⚠️ 3D Background error:', e);
+            }
+        } else {
+            console.warn('⚠️ THREE.js/GSAP not loaded');
+        }
+    }, 500); // Wait 500ms for libraries to load
     
     // Load chat history
     loadHistory();
