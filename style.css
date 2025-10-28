@@ -193,6 +193,10 @@ body {
     line-height: 1.6;
 }
 
+[data-theme="night"] .header-subtitle {
+    color: #10B981;
+}
+
 /* ==================== Chat Content ==================== */
 .chat-content {
     padding: 20px;
