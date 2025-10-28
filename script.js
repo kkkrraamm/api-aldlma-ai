@@ -582,5 +582,6 @@ function formatTime(timestamp) {
 }
 
 // ==================== Start ====================
-document.addEventListener('DOMContentLoaded', init);
+// Use window.onload instead of DOMContentLoaded to ensure all external scripts are loaded
+window.addEventListener('load', init);
 
