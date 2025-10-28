@@ -275,6 +275,7 @@ body {
 .message.user .msg-bubble {
     background: var(--user-msg);
     color: white;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .message.bot .msg-bubble {
@@ -286,6 +287,7 @@ body {
 [data-theme="night"] .message.bot .msg-bubble {
     background: var(--surface);
     color: var(--text);
+    border: 1px solid var(--border);
 }
 
 .msg-text {
