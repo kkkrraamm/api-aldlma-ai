@@ -52,7 +52,7 @@ function init() {
     console.log('✅ جاهز!');
 }
 
-// ==================== 3D Background ==================== 
+// ==================== 3D Background - SPECTACULAR ==================== 
 function init3DBackground() {
     const canvas = document.getElementById('bg-canvas');
     const scene = new THREE.Scene();
@@ -61,93 +61,195 @@ function init3DBackground() {
     
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    camera.position.z = 5;
+    camera.position.z = 8;
     
     // Get theme colors
     const isDark = document.documentElement.getAttribute('data-theme') === 'night';
-    const primaryColor = isDark ? 0x10B981 : 0x10B981;
-    const secondaryColor = isDark ? 0x0F172A : 0xFEF3E2;
+    const primaryColor = new THREE.Color(0x10B981);
+    const secondaryColor = new THREE.Color(isDark ? 0x0F172A : 0xFEF3E2);
+    const accentColor = new THREE.Color(0xFBBF24);
     
-    // Create particles (stars/dots)
+    // 🌟 1. MASSIVE PARTICLE SYSTEM (2000 particles)
     const particlesGeometry = new THREE.BufferGeometry();
-    const particlesCount = 800;
+    const particlesCount = 2000;
     const posArray = new Float32Array(particlesCount * 3);
+    const colorsArray = new Float32Array(particlesCount * 3);
+    const sizesArray = new Float32Array(particlesCount);
     
-    for(let i = 0; i < particlesCount * 3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 15;
+    for(let i = 0; i < particlesCount; i++) {
+        // Position
+        posArray[i * 3] = (Math.random() - 0.5) * 25;
+        posArray[i * 3 + 1] = (Math.random() - 0.5) * 25;
+        posArray[i * 3 + 2] = (Math.random() - 0.5) * 20;
+        
+        // Colors (mix of green and gold)
+        const colorChoice = Math.random();
+        if(colorChoice > 0.7) {
+            colorsArray[i * 3] = accentColor.r;
+            colorsArray[i * 3 + 1] = accentColor.g;
+            colorsArray[i * 3 + 2] = accentColor.b;
+        } else {
+            colorsArray[i * 3] = primaryColor.r;
+            colorsArray[i * 3 + 1] = primaryColor.g;
+            colorsArray[i * 3 + 2] = primaryColor.b;
+        }
+        
+        // Sizes
+        sizesArray[i] = Math.random() * 0.05;
     }
     
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorsArray, 3));
+    particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizesArray, 1));
+    
     const particlesMaterial = new THREE.PointsMaterial({
-        size: 0.02,
-        color: primaryColor,
+        size: 0.03,
+        vertexColors: true,
         transparent: true,
-        opacity: 0.6,
-        blending: THREE.AdditiveBlending
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
     });
     
     const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
     
-    // Create waves (rings)
+    // 🌊 2. DALMA WAVES (Multiple rotating toruses)
     const waves = [];
-    for(let i = 0; i < 3; i++) {
-        const geometry = new THREE.TorusGeometry(2 + i * 0.8, 0.02, 16, 100);
+    for(let i = 0; i < 5; i++) {
+        const geometry = new THREE.TorusGeometry(3 + i * 1, 0.03, 16, 100);
         const material = new THREE.MeshBasicMaterial({
-            color: primaryColor,
+            color: i % 2 === 0 ? primaryColor : accentColor,
             transparent: true,
-            opacity: 0.3 - i * 0.1,
+            opacity: 0.4 - i * 0.05,
             wireframe: true
         });
         const wave = new THREE.Mesh(geometry, material);
-        wave.rotation.x = Math.PI / 2;
-        wave.position.z = -3 - i * 2;
+        wave.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+        wave.position.z = -5 - i * 1.5;
         scene.add(wave);
         waves.push(wave);
+        
+        // GSAP animation for waves
+        gsap.to(wave.rotation, {
+            z: Math.PI * 2,
+            duration: 20 + i * 5,
+            repeat: -1,
+            ease: "none"
+        });
     }
     
-    // Create floating spheres
-    const spheres = [];
-    for(let i = 0; i < 5; i++) {
-        const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+    // 🔮 3. FLOATING GEOMETRIC SHAPES
+    const geometries = [];
+    const shapes = [
+        new THREE.IcosahedronGeometry(0.3, 0),
+        new THREE.OctahedronGeometry(0.25, 0),
+        new THREE.TetrahedronGeometry(0.3, 0),
+        new THREE.TorusKnotGeometry(0.2, 0.08, 64, 8)
+    ];
+    
+    for(let i = 0; i < 8; i++) {
+        const geometry = shapes[Math.floor(Math.random() * shapes.length)];
+        const material = new THREE.MeshBasicMaterial({
+            color: Math.random() > 0.5 ? primaryColor : accentColor,
+            transparent: true,
+            opacity: 0.5,
+            wireframe: true
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(
+            (Math.random() - 0.5) * 15,
+            (Math.random() - 0.5) * 15,
+            (Math.random() - 0.5) * 8
+        );
+        scene.add(mesh);
+        geometries.push(mesh);
+        
+        // GSAP animation for each shape
+        gsap.to(mesh.rotation, {
+            x: Math.PI * 2,
+            y: Math.PI * 2,
+            duration: 15 + Math.random() * 10,
+            repeat: -1,
+            ease: "none"
+        });
+        
+        gsap.to(mesh.position, {
+            y: mesh.position.y + (Math.random() - 0.5) * 5,
+            duration: 8 + Math.random() * 4,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+    }
+    
+    // 💫 4. GLOWING ENERGY SPHERES
+    const energySpheres = [];
+    for(let i = 0; i < 3; i++) {
+        const geometry = new THREE.SphereGeometry(0.5 + i * 0.2, 32, 32);
         const material = new THREE.MeshBasicMaterial({
             color: primaryColor,
             transparent: true,
-            opacity: 0.4,
-            wireframe: true
+            opacity: 0.2,
+            wireframe: false
         });
         const sphere = new THREE.Mesh(geometry, material);
         sphere.position.set(
-            (Math.random() - 0.5) * 8,
-            (Math.random() - 0.5) * 8,
-            (Math.random() - 0.5) * 5
+            (Math.random() - 0.5) * 10,
+            (Math.random() - 0.5) * 10,
+            -3 - i * 2
         );
         scene.add(sphere);
-        spheres.push(sphere);
+        energySpheres.push(sphere);
+        
+        // Pulsing animation
+        gsap.to(sphere.scale, {
+            x: 1.5,
+            y: 1.5,
+            z: 1.5,
+            duration: 2 + i,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
     }
     
-    // Animation
+    // 🌈 5. LIGHT RAYS
+    const lightRays = [];
+    for(let i = 0; i < 12; i++) {
+        const geometry = new THREE.CylinderGeometry(0.01, 0.01, 20, 8);
+        const material = new THREE.MeshBasicMaterial({
+            color: i % 2 === 0 ? primaryColor : accentColor,
+            transparent: true,
+            opacity: 0.15
+        });
+        const ray = new THREE.Mesh(geometry, material);
+        const angle = (i / 12) * Math.PI * 2;
+        ray.position.set(Math.cos(angle) * 8, Math.sin(angle) * 8, -10);
+        ray.lookAt(0, 0, 0);
+        scene.add(ray);
+        lightRays.push(ray);
+    }
+    
+    // Animation loop
     let time = 0;
     function animate() {
         requestAnimationFrame(animate);
         time += 0.001;
         
-        // Rotate particles slowly
-        particlesMesh.rotation.y = time * 0.2;
-        particlesMesh.rotation.x = time * 0.1;
+        // Rotate particles in 3D space
+        particlesMesh.rotation.y = time * 0.15;
+        particlesMesh.rotation.x = Math.sin(time) * 0.05;
         
-        // Animate waves
-        waves.forEach((wave, i) => {
-            wave.rotation.z = time * (0.3 + i * 0.1);
-            wave.position.z = -3 - i * 2 + Math.sin(time * 2 + i) * 0.5;
+        // Animate light rays
+        lightRays.forEach((ray, i) => {
+            ray.rotation.z = time * (0.2 + i * 0.02);
         });
         
-        // Float spheres
-        spheres.forEach((sphere, i) => {
-            sphere.position.y += Math.sin(time * 2 + i) * 0.002;
-            sphere.rotation.x += 0.01;
-            sphere.rotation.y += 0.01;
-        });
+        // Camera gentle movement
+        camera.position.x = Math.sin(time * 0.3) * 0.5;
+        camera.position.y = Math.cos(time * 0.2) * 0.3;
+        camera.lookAt(scene.position);
         
         renderer.render(scene, camera);
     }
@@ -164,10 +266,21 @@ function init3DBackground() {
     // Update colors on theme change
     window.addEventListener('themeChanged', () => {
         const isDark = document.documentElement.getAttribute('data-theme') === 'night';
-        const newColor = isDark ? 0x10B981 : 0x10B981;
-        particlesMaterial.color.setHex(newColor);
-        waves.forEach(wave => wave.material.color.setHex(newColor));
-        spheres.forEach(sphere => sphere.material.color.setHex(newColor));
+        // Animate color transitions with GSAP
+        gsap.to(primaryColor, {
+            r: 0x10 / 255,
+            g: 0xB9 / 255,
+            b: 0x81 / 255,
+            duration: 1,
+            onUpdate: () => {
+                waves.forEach((wave, i) => {
+                    if(i % 2 === 0) wave.material.color.copy(primaryColor);
+                });
+                geometries.forEach((geo, i) => {
+                    if(i % 2 === 0) geo.material.color.copy(primaryColor);
+                });
+            }
+        });
     });
 }
 
