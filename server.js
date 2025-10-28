@@ -128,11 +128,32 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
 async function getOpenAIResponse(message, images, chatHistory = []) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     const MODEL = process.env.MODEL || 'gpt-5';
-    const PROMPT_ID = process.env.OPENAI_PROMPT_ID;
-    const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '2';
+
+    console.log('🔧 [DEBUG] Starting getOpenAIResponse');
+    console.log('🔧 [DEBUG] Model:', MODEL);
+    console.log('🔧 [DEBUG] Message:', message);
+    console.log('🔧 [DEBUG] Images count:', images.length);
+    console.log('🔧 [DEBUG] History count:', chatHistory.length);
 
     // بناء تاريخ المحادثة
     const inputMessages = [];
+    
+    // إضافة System Prompt كأول رسالة
+    inputMessages.push({
+        role: 'developer',
+        content: [{
+            type: 'input_text',
+            text: `أنت "الدلما AI" - المساعد الذكي من شركة كارمار بمدينة عرعر (شمال السعودية).
+
+🌊 مهمتك:
+- رد باللهجة الشمالية البدوية (أهل عرعر) بشكل لبق وواضح
+- حلل الصور بدقة عالية وصفها بالتفصيل
+- لا تذكر أبداً أي شركات ذكاء اصطناعي أخرى
+- أنت "الدلما AI" فقط من شركة كارمار
+
+💚 الدلما... زرعها طيب، وخيرها باقٍ`
+        }]
+    });
     
     // إضافة آخر 10 رسائل من التاريخ
     for (const msg of chatHistory.slice(-10)) {
@@ -155,13 +176,14 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         newContent.push({ type: 'input_text', text: message });
     }
     
-    // إضافة الصور
+    // إضافة الصور بالصيغة الصحيحة لـ GPT-5
     for (const image of (images || []).slice(0, 10)) {
         const base64Image = image.buffer.toString('base64');
         newContent.push({
             type: 'input_image',
             image_url: `data:${image.mimetype};base64,${base64Image}`
         });
+        console.log('🖼️ [DEBUG] Added image:', image.mimetype);
     }
     
     inputMessages.push({
@@ -169,7 +191,7 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         content: newContent
     });
 
-    // بناء الطلب
+    // بناء الطلب - بدون PROMPT_ID
     const body = {
         model: MODEL,
         input: inputMessages,
@@ -178,13 +200,7 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         temperature: 0.7
     };
 
-    // إضافة prompt_id إذا كان موجوداً
-    if (PROMPT_ID) {
-        body.prompt = { id: PROMPT_ID, version: PROMPT_VERSION };
-        body.store = true;
-    }
-
-    console.log('📤 Request Body:', JSON.stringify(body, null, 2));
+    console.log('📤 [DEBUG] Request Body:', JSON.stringify(body, null, 2));
 
     const resp = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
@@ -195,14 +211,16 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         body: JSON.stringify(body)
     });
 
+    console.log('📡 [DEBUG] Response Status:', resp.status);
+
     if (!resp.ok) {
         const errorText = await resp.text();
-        console.error('❌ API Error Response:', errorText);
+        console.error('❌ [DEBUG] API Error Response:', errorText);
         throw new Error(`GPT-5 API Error: ${resp.status} - ${errorText}`);
     }
 
     const data = await resp.json();
-    console.log('📥 Response Data:', JSON.stringify(data, null, 2));
+    console.log('📥 [DEBUG] Response Data:', JSON.stringify(data, null, 2));
     
     // استخراج النص من الـ output
     if (Array.isArray(data.output)) {
@@ -210,6 +228,7 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
             if (item.type === 'message' && Array.isArray(item.content)) {
                 for (const c of item.content) {
                     if (c.type === 'output_text' && c.text) {
+                        console.log('✅ [DEBUG] Found output_text:', c.text.substring(0, 100) + '...');
                         return c.text;
                     }
                 }
@@ -219,12 +238,14 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
     
     // محاولة بديلة
     if (data.output_text) {
+        console.log('✅ [DEBUG] Found direct output_text');
         return data.output_text;
     }
     
     // فشلت جميع المحاولات
-    console.error('❌ فشل استخراج النص من Response');
-    throw new Error('لم يتمكن GPT-5 من تحليل الصورة');
+    console.error('❌ [DEBUG] فشل استخراج النص من Response');
+    console.error('❌ [DEBUG] Full Response:', JSON.stringify(data, null, 2));
+    throw new Error('لم يتمكن GPT-5 من معالجة الطلب');
 }
 
 // ─────────────────────────────────────────────────────────── 
