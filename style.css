@@ -288,21 +288,36 @@ body {
 }
 
 .message.user .msg-bubble {
-    background: var(--user-msg);
-    color: white;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+    color: #FFFFFF;
+    border-radius: 18px 18px 4px 18px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    font-weight: 500;
 }
 
 .message.bot .msg-bubble {
     background: var(--bot-msg);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 2px solid var(--primary);
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 4px 12px var(--shadow);
+    position: relative;
+    padding-right: 45px;
+}
+
+.message.bot .msg-bubble::after {
+    content: '🌊';
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 1.3em;
+    opacity: 0.8;
 }
 
 [data-theme="night"] .message.bot .msg-bubble {
     background: var(--surface);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 2px solid var(--primary);
 }
 
 .msg-text {

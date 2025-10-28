@@ -406,7 +406,7 @@ async function handleSend() {
         
         const reply = await sendToAPI(text, userMsg.images);
         
-        // Add bot reply
+        // Add bot reply with typing effect
         const botMsg = {
             role: 'bot',
             text: reply,
@@ -416,7 +416,7 @@ async function handleSend() {
         
         chatHistory.push(botMsg);
         saveHistory();
-        addMessageDOM('bot', reply, [], Date.now());
+        await addMessageWithTyping('bot', reply, [], Date.now());
         
     } catch (error) {
         console.error('خطأ:', error);
@@ -464,13 +464,8 @@ async function sendToAPI(message, images) {
 // ==================== Add Message to DOM ====================
 function addMessageDOM(role, text, images = [], time = Date.now(), isError = false) {
     const msgDiv = document.createElement('div');
-    msgDiv.className = `msg ${role}`;
+    msgDiv.className = `message ${role}`;
     if (isError) msgDiv.classList.add('error-msg');
-    
-    // Avatar
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
     
     // Bubble
     const bubble = document.createElement('div');
@@ -504,11 +499,58 @@ function addMessageDOM(role, text, images = [], time = Date.now(), isError = fal
     timeDiv.textContent = formatTime(time);
     bubble.appendChild(timeDiv);
     
-    msgDiv.appendChild(avatar);
     msgDiv.appendChild(bubble);
     elements.messagesContainer.appendChild(msgDiv);
     
     scrollToBottom();
+}
+
+// ==================== Add Message with Typing Effect ====================
+async function addMessageWithTyping(role, text, images = [], time = Date.now()) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}`;
+    
+    // Bubble
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    
+    // Text container
+    const textDiv = document.createElement('div');
+    textDiv.className = 'msg-text';
+    textDiv.textContent = ''; // Start empty
+    bubble.appendChild(textDiv);
+    
+    // Images
+    if (images && images.length > 0) {
+        const imgsDiv = document.createElement('div');
+        imgsDiv.className = 'msg-images';
+        images.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = 'صورة';
+            img.loading = 'lazy';
+            imgsDiv.appendChild(img);
+        });
+        bubble.appendChild(imgsDiv);
+    }
+    
+    // Time
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'msg-time';
+    timeDiv.textContent = formatTime(time);
+    bubble.appendChild(timeDiv);
+    
+    msgDiv.appendChild(bubble);
+    elements.messagesContainer.appendChild(msgDiv);
+    scrollToBottom();
+    
+    // Typing effect - character by character
+    const typingSpeed = 30; // milliseconds per character
+    for (let i = 0; i < text.length; i++) {
+        textDiv.textContent += text[i];
+        scrollToBottom();
+        await new Promise(resolve => setTimeout(resolve, typingSpeed));
+    }
 }
 
 // ==================== Typing Indicator ====================
