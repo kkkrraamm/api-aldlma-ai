@@ -4,50 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>الدلما AI - محادثة ذكية</title>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <!-- Header - نفس تطبيق الدلما بالضبط -->
-    <header class="dalma-header">
-        <div class="header-top">
-            <div class="header-actions-right">
-                <button class="theme-toggle" id="themeBtn" aria-label="تبديل الوضع">
-                    <i class="fas fa-moon"></i>
-                </button>
+    <!-- Main Scroll Container -->
+    <div class="scroll-container">
+        <!-- Header - نفس تطبيق الدلما بالضبط -->
+        <header class="dalma-header">
+            <div class="header-top">
+                <div class="header-actions-right">
+                    <button class="theme-toggle" id="themeBtn" aria-label="تبديل الوضع">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
             </div>
-        </div>
-        
-        <div class="header-center">
-            <div class="logo-glow">
-                <img src="assets/img/aldlma.png" alt="الدلما" class="dalma-logo">
+            
+            <div class="header-center">
+                <div class="logo-glow">
+                    <img src="assets/img/aldlma.png" alt="الدلما" class="dalma-logo">
+                </div>
+                <h1 class="header-title">الدلما... زرعها طيب، وخيرها باقٍ</h1>
+                <p class="header-subtitle">الدلما منصة مجتمعية تقنية تربطك بخدمات مدينتك، من أهل عرعر إلى أهلها، نوصلك بالأفضل… بضغطة زر.</p>
             </div>
-            <h1 class="header-title">الدلما... زرعها طيب، وخيرها باقٍ</h1>
-            <p class="header-subtitle">الدلما منصة مجتمعية تقنية تربطك بخدمات مدينتك، من أهل عرعر إلى أهلها، نوصلك بالأفضل… بضغطة زر.</p>
-        </div>
-    </header>
+        </header>
 
-    <!-- Chat Area -->
-    <main class="chat-area" id="chatArea">
-        <div class="messages-container" id="messagesContainer">
-            <!-- Welcome Message -->
-            <div class="welcome-box">
-                <h2>مرحباً بك في الدلما AI</h2>
-                <p>كيف يمكنني مساعدتك اليوم؟</p>
+        <!-- Chat Content -->
+        <main class="chat-content">
+            <div class="messages-container" id="messagesContainer">
+                <!-- Welcome Message -->
+                <div class="welcome-box">
+                    <h2>مرحباً بك في الدلما AI</h2>
+                    <p>كيف يمكنني مساعدتك اليوم؟</p>
+                </div>
             </div>
-        </div>
-        
-        <!-- Typing Indicator -->
-        <div class="typing-box" id="typingBox" style="display: none;">
-            <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
+            
+            <!-- Typing Indicator -->
+            <div class="typing-box" id="typingBox" style="display: none;">
+                <div class="msg-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
 
-    <!-- Input Section -->
+        <!-- Footer -->
+        <footer class="app-footer">
+            <img src="assets/img/logo_karmar.png" alt="Karmar" class="karmar-logo">
+            <p>&copy; 2025 Karmar Company. جميع الحقوق محفوظة.</p>
+        </footer>
+    </div>
+
+    <!-- Fixed Input Section -->
     <div class="input-section">
         <div class="input-container">
             <!-- Image Preview -->
@@ -64,6 +76,7 @@
                     id="messageBox" 
                     class="message-box" 
                     placeholder="اكتب رسالتك هنا..."
+                    rows="1"
                 ></textarea>
                 
                 <button class="send-btn" id="sendBtn" title="إرسال">
@@ -73,13 +86,6 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="app-footer">
-        <img src="assets/img/logo_karmar.png" alt="Karmar" class="karmar-logo">
-        <p>&copy; 2025 Karmar Company. جميع الحقوق محفوظة.</p>
-    </footer>
-
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=3"></script>
 </body>
 </html>
-
