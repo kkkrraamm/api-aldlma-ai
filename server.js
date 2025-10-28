@@ -197,7 +197,7 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
     const body = {
         model: MODEL,
         input: inputMessages,
-        max_output_tokens: 1500,
+        max_output_tokens: 4000, // زيادة الحد الأقصى لضمان اكتمال الرد
         reasoning: { effort: 'medium' }
     };
 
