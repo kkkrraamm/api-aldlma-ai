@@ -46,7 +46,45 @@ function init() {
     elements.fileInput.addEventListener('change', handleFiles);
     elements.themeBtn.addEventListener('click', toggleTheme);
     
+    // Header scroll behavior
+    initHeaderScroll();
+    
     console.log('✅ جاهز!');
+}
+
+// ==================== Header Scroll Behavior ====================
+let lastScrollTop = 0;
+let scrollTimeout;
+
+function initHeaderScroll() {
+    const header = document.querySelector('.dalma-header');
+    const chatArea = elements.chatArea;
+    
+    chatArea.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        
+        scrollTimeout = setTimeout(() => {
+            const scrollTop = chatArea.scrollTop;
+            
+            // إذا نزل للأسفل، يخفي الهيدر
+            if (scrollTop > lastScrollTop && scrollTop > 100) {
+                header.style.transform = 'translateY(-100%)';
+                header.style.transition = 'transform 0.3s ease-in-out';
+            } 
+            // إذا طلع للأعلى، يظهر الهيدر
+            else if (scrollTop < lastScrollTop) {
+                header.style.transform = 'translateY(0)';
+                header.style.transition = 'transform 0.3s ease-in-out';
+            }
+            
+            // إذا وصل لأعلى الصفحة، يتأكد الهيدر ظاهر
+            if (scrollTop === 0) {
+                header.style.transform = 'translateY(0)';
+            }
+            
+            lastScrollTop = scrollTop;
+        }, 50);
+    });
 }
 
 // ==================== Theme ====================
