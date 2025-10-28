@@ -127,183 +127,109 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
 // ─────────────────────────────────────────────────────────── 
 async function getOpenAIResponse(message, images, chatHistory = []) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-    const MODEL = process.env.MODEL || 'gpt-4o-mini';
+    const MODEL = process.env.MODEL || 'gpt-5';
     const PROMPT_ID = process.env.OPENAI_PROMPT_ID;
-    const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '1';
+    const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '2';
 
-    // إذا كان لديك Prompt معرف (pmpt_...) سنستخدم واجهة responses الجديدة مع prompt
-    if (PROMPT_ID) {
-        // بناء تاريخ المحادثة + الرسالة الجديدة
-        const inputMessages = [];
-        
-        // إضافة آخر 10 رسائل من التاريخ
-        const recentHistory = chatHistory.slice(-10);
-        for (const msg of recentHistory) {
-            if (msg.role === 'user') {
-                inputMessages.push({
-                    role: 'user',
-                    content: [{ type: 'input_text', text: msg.text || '' }]
-                });
-            } else if (msg.role === 'bot') {
-                inputMessages.push({
-                    role: 'assistant',
-                    content: [{ type: 'output_text', text: msg.text || '' }]
-                });
-            }
-        }
-        
-        // الرسالة الجديدة من المستخدم
-        const newContent = [];
-        newContent.push({ type: 'input_text', text: message || '' });
-        
-        // إضافة الصور
-        for (const image of (images || []).slice(0, 10)) {
-            const base64Image = image.buffer.toString('base64');
-            newContent.push({
-                type: 'input_image',
-                image_url: { url: `data:${image.mimetype};base64,${base64Image}` }
-            });
-        }
-        
-        inputMessages.push({
-            role: 'user',
-            content: newContent
-        });
-
-        const body = {
-            model: MODEL,
-            prompt: { id: PROMPT_ID, version: PROMPT_VERSION },
-            input: inputMessages,
-            store: true,
-            include: ['reasoning.encrypted_content', 'web_search_call.action.sources']
-        };
-
-        const resp = await fetch('https://api.openai.com/v1/responses', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_API_KEY}`
-            },
-            body: JSON.stringify(body)
-        });
-
-        if (!resp.ok) {
-            throw new Error(`AI API Error: ${resp.status}`);
-        }
-
-        const data = await resp.json();
-        
-        // محاولة استخراج النص من الـ output
-        if (Array.isArray(data.output)) {
-            // ابحث عن رسالة من نوع message
-            for (const item of data.output) {
-                if (item.type === 'message' && Array.isArray(item.content)) {
-                    for (const contentItem of item.content) {
-                        if (contentItem.type === 'output_text' && contentItem.text) {
-                            return contentItem.text;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // محاولة بديلة: output_text مباشرة
-        if (data.output_text) {
-            return data.output_text;
-        }
-        
-        // فشلت جميع المحاولات - أرجع خطأ واضح
-        console.error('❌ فشل استخراج النص من AI Response:', JSON.stringify(data, null, 2));
-        throw new Error('لم أتمكن من استخراج الرد من محرك الذكاء الاصطناعي');
-    }
-
-    // وإلا: نستخدم chat.completions التقليدي مع system + user
-    const messages = [
-        {
-            role: 'system',
-            content: `أنت "الدلما AI"، المساعد الذكي الرسمي لمنصة الدلما.
-
-🌊 الدلما منصة مجتمعية تقنية من أهل عرعر إلى أهلها، نوصلك بالأفضل بضغطة زر.
-
-مهمتك:
-- مساعدة المستخدمين بطريقة احترافية وودودة
-- الإجابة على الأسئلة بوضوح ودقة باللغة العربية
-- تحليل الصور المرفقة بدقة
-- تقديم اقتراحات مفيدة حسب السياق
-- مساعدة في خدمات الدلما (شركاء، خدمات، منتجات، إلخ)
-
-هويتك:
-🌊 اسمك: الدلما AI (فقط، لا تذكر أي شركات أو تقنيات أخرى)
-💚 من أهل عرعر لأهل عرعر
-✨ ذكي، سريع، ومفيد
-📚 تملك معرفة واسعة وتفهم الثقافة السعودية
-
-قواعد مهمة:
-❌ لا تذكر أنك من OpenAI أو ChatGPT أو أي شركة أخرى
-❌ لا تذكر تقنيات أو نماذج ذكاء اصطناعي
-✅ أنت "الدلما AI" فقط - المساعد الذكي لمنصة الدلما
-✅ اجعل إجاباتك عملية ومفيدة
-✅ استخدم الرموز التعبيرية بشكل مناسب
-
-الدلما... زرعها طيب، وخيرها باقٍ 💚`
-        }
-    ];
-
-    // إضافة تاريخ المحادثة (آخر 10 رسائل)
-    const recentHistory = chatHistory.slice(-10);
-    for (const msg of recentHistory) {
+    // بناء تاريخ المحادثة
+    const inputMessages = [];
+    
+    // إضافة آخر 10 رسائل من التاريخ
+    for (const msg of chatHistory.slice(-10)) {
         if (msg.role === 'user') {
-            messages.push({
+            inputMessages.push({
                 role: 'user',
-                content: msg.text || ''
+                content: [{ type: 'input_text', text: msg.text || '' }]
             });
         } else if (msg.role === 'bot') {
-            messages.push({
+            inputMessages.push({
                 role: 'assistant',
-                content: msg.text || ''
+                content: [{ type: 'output_text', text: msg.text || '' }]
             });
         }
     }
+    
+    // الرسالة الجديدة
+    const newContent = [];
+    if (message) {
+        newContent.push({ type: 'input_text', text: message });
+    }
+    
+    // إضافة الصور
+    for (const image of (images || []).slice(0, 10)) {
+        const base64Image = image.buffer.toString('base64');
+        newContent.push({
+            type: 'input_image',
+            image_url: `data:${image.mimetype};base64,${base64Image}`
+        });
+    }
+    
+    inputMessages.push({
+        role: 'user',
+        content: newContent
+    });
 
-    // إضافة الرسالة الجديدة مع الصور
-    if (images.length > 0) {
-        const content = [
-            { type: 'text', text: message || 'ماذا ترى في هذه الصور؟' }
-        ];
-        for (const image of images.slice(0, 10)) {
-            const base64Image = image.buffer.toString('base64');
-            content.push({
-                type: 'image_url',
-                image_url: {
-                    url: `data:${image.mimetype};base64,${base64Image}`
-                }
-            });
-        }
-        messages.push({ role: 'user', content: content });
-    } else {
-        messages.push({ role: 'user', content: message });
+    // بناء الطلب
+    const body = {
+        model: MODEL,
+        input: inputMessages,
+        max_output_tokens: 1500,
+        reasoning: { effort: 'medium' },
+        temperature: 0.7
+    };
+
+    // إضافة prompt_id إذا كان موجوداً
+    if (PROMPT_ID) {
+        body.prompt = { id: PROMPT_ID, version: PROMPT_VERSION };
+        body.store = true;
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('📤 Request Body:', JSON.stringify(body, null, 2));
+
+    const resp = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
-        body: JSON.stringify({
-            model: MODEL,
-            messages,
-            max_tokens: 1000,
-            temperature: 0.7
-        })
+        body: JSON.stringify(body)
     });
 
-    if (!response.ok) {
-        throw new Error(`OpenAI API Error: ${response.status}`);
+    if (!resp.ok) {
+        const errorText = await resp.text();
+        console.error('❌ API Error Response:', errorText);
+        throw new Error(`GPT-5 API Error: ${resp.status} - ${errorText}`);
     }
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || JSON.stringify(data);
+
+    const data = await resp.json();
+    console.log('📥 Response Data:', JSON.stringify(data, null, 2));
+    
+    // استخراج النص من الـ output
+    if (Array.isArray(data.output)) {
+        for (const item of data.output) {
+            if (item.type === 'message' && Array.isArray(item.content)) {
+                for (const c of item.content) {
+                    if (c.type === 'output_text' && c.text) {
+                        return c.text;
+                    }
+                }
+            }
+        }
+    }
+    
+    // محاولة بديلة
+    if (data.output_text) {
+        return data.output_text;
+    }
+    
+    // فشلت جميع المحاولات
+    console.error('❌ فشل استخراج النص من Response');
+    throw new Error('لم يتمكن GPT-5 من تحليل الصورة');
 }
+
+// ─────────────────────────────────────────────────────────── 
+// 🔄 Fallback Response (if no API key or error)
+// ─────────────────────────────────────────────────────────── 
 
 // ─────────────────────────────────────────────────────────── 
 // 🔄 Fallback Response (if no OpenAI API)
