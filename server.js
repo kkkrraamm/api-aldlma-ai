@@ -87,13 +87,21 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
         let aiResponse = '';
         
         if (process.env.OPENAI_API_KEY) {
+            console.log('✅ OPENAI_API_KEY موجود');
+            console.log('📋 PROMPT_ID:', process.env.OPENAI_PROMPT_ID || 'غير موجود');
+            console.log('📋 MODEL:', process.env.MODEL || 'default');
             try {
+                console.log('🚀 جاري استدعاء OpenAI...');
                 aiResponse = await getOpenAIResponse(message, images, chatHistory);
+                console.log('✅ تم الحصول على رد من OpenAI بنجاح');
             } catch (error) {
                 console.error('❌ AI Engine Error:', error.message);
+                console.error('❌ Full Error:', error);
                 aiResponse = generateFallbackResponse(message, images);
+                console.log('⚠️ استخدام Fallback Response');
             }
         } else {
+            console.log('⚠️ OPENAI_API_KEY غير موجود - استخدام Fallback');
             aiResponse = generateFallbackResponse(message, images);
         }
 
