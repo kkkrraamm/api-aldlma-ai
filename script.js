@@ -30,16 +30,22 @@ function init() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
     
-    // Initialize 3D Background (check if THREE is loaded)
-    if (typeof THREE !== 'undefined') {
-        try {
-            init3DBackground();
-        } catch(e) {
-            console.warn('⚠️ 3D Background error:', e);
+    // Initialize 3D Background with retry logic
+    function waitForTHREE(attempts = 0, maxAttempts = 20) {
+        if (typeof THREE !== 'undefined' && typeof gsap !== 'undefined') {
+            try {
+                init3DBackground();
+                console.log('✅ 3D Background initialized!');
+            } catch(e) {
+                console.warn('⚠️ 3D Background error:', e);
+            }
+        } else if (attempts < maxAttempts) {
+            setTimeout(() => waitForTHREE(attempts + 1, maxAttempts), 100);
+        } else {
+            console.warn('⚠️ THREE.js/GSAP not loaded after 2 seconds');
         }
-    } else {
-        console.warn('⚠️ THREE.js not loaded yet');
     }
+    waitForTHREE();
     
     // Load chat history
     loadHistory();
