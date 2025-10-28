@@ -86,24 +86,21 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
         // Call OpenAI API if API key is available
         let aiResponse = '';
         
-        if (process.env.OPENAI_API_KEY) {
-            console.log('✅ OPENAI_API_KEY موجود');
-            console.log('📋 PROMPT_ID:', process.env.OPENAI_PROMPT_ID || 'غير موجود');
-            console.log('📋 MODEL:', process.env.MODEL || 'default');
-            try {
-                console.log('🚀 جاري استدعاء OpenAI...');
-                aiResponse = await getOpenAIResponse(message, images, chatHistory);
-                console.log('✅ تم الحصول على رد من OpenAI بنجاح');
-            } catch (error) {
-                console.error('❌ AI Engine Error:', error.message);
-                console.error('❌ Full Error:', error);
-                aiResponse = generateFallbackResponse(message, images);
-                console.log('⚠️ استخدام Fallback Response');
-            }
-        } else {
-            console.log('⚠️ OPENAI_API_KEY غير موجود - استخدام Fallback');
-            aiResponse = generateFallbackResponse(message, images);
+        if (!process.env.OPENAI_API_KEY) {
+            console.error('❌ OPENAI_API_KEY غير موجود في Environment Variables');
+            return res.status(500).json({
+                error: 'خطأ في الإعدادات - يرجى التواصل مع الإدارة',
+                details: 'OPENAI_API_KEY is missing'
+            });
         }
+        
+        console.log('✅ OPENAI_API_KEY موجود');
+        console.log('📋 PROMPT_ID:', process.env.OPENAI_PROMPT_ID || 'غير موجود');
+        console.log('📋 MODEL:', process.env.MODEL || 'default');
+        
+        console.log('🚀 جاري استدعاء OpenAI...');
+        aiResponse = await getOpenAIResponse(message, images, chatHistory);
+        console.log('✅ تم الحصول على رد من OpenAI بنجاح');
 
         // Return response
         res.json({
@@ -216,70 +213,100 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
 
     console.log('📤 [DEBUG] Request Body:', JSON.stringify(body, null, 2));
 
-    const resp = await fetch('https://api.openai.com/v1/responses', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify(body)
-    });
-
-    console.log('📡 [DEBUG] Response Status:', resp.status);
-
-    if (!resp.ok) {
-        const errorText = await resp.text();
-        console.error('❌ [DEBUG] API Error Response:', errorText);
-        throw new Error(`GPT-5 API Error: ${resp.status} - ${errorText}`);
-    }
-
-    const data = await resp.json();
-    console.log('📥 [DEBUG] Response Data:', JSON.stringify(data, null, 2));
+    // 🔄 Retry Logic - 3 محاولات مع تأخير متزايد
+    const MAX_RETRIES = 3;
+    let lastError = null;
     
-    // استخراج النص من الـ output
-    if (Array.isArray(data.output)) {
-        for (const item of data.output) {
-            if (item.type === 'message' && Array.isArray(item.content)) {
-                for (const c of item.content) {
-                    if (c.type === 'output_text' && c.text) {
-                        console.log('✅ [DEBUG] Found output_text:', c.text.substring(0, 100) + '...');
-                        return c.text;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            console.log(`🔄 [ATTEMPT ${attempt}/${MAX_RETRIES}] جاري الاتصال بـ OpenAI...`);
+            
+            const resp = await fetch('https://api.openai.com/v1/responses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${OPENAI_API_KEY}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            console.log('📡 [DEBUG] Response Status:', resp.status);
+
+            // إذا كان 5xx (Server Error)، نحاول مرة ثانية
+            if (resp.status >= 500 && resp.status < 600) {
+                const errorText = await resp.text();
+                console.error(`❌ [ATTEMPT ${attempt}] Server Error ${resp.status}:`, errorText);
+                lastError = new Error(`Server Error: ${resp.status}`);
+                
+                // انتظر قبل المحاولة الثانية (2، 4، 8 ثواني)
+                if (attempt < MAX_RETRIES) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    console.log(`⏳ انتظار ${delay/1000} ثانية قبل المحاولة التالية...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    continue; // حاول مرة ثانية
+                }
+            }
+
+            // إذا كان 4xx (Client Error)، لا نحاول مرة ثانية
+            if (!resp.ok) {
+                const errorText = await resp.text();
+                console.error('❌ [DEBUG] API Error Response:', errorText);
+                throw new Error(`GPT-5 API Error: ${resp.status} - ${errorText}`);
+            }
+
+            const data = await resp.json();
+            console.log('📥 [DEBUG] Response Data:', JSON.stringify(data, null, 2));
+            
+            // استخراج النص من الـ output
+            if (Array.isArray(data.output)) {
+                for (const item of data.output) {
+                    if (item.type === 'message' && Array.isArray(item.content)) {
+                        for (const c of item.content) {
+                            if (c.type === 'output_text' && c.text) {
+                                console.log('✅ [DEBUG] Found output_text:', c.text.substring(0, 100) + '...');
+                                return c.text;
+                            }
+                        }
                     }
                 }
             }
+            
+            // محاولة بديلة
+            if (data.output_text) {
+                console.log('✅ [DEBUG] Found direct output_text');
+                return data.output_text;
+            }
+            
+            // لم نجد نص في الـ response
+            console.error('❌ [DEBUG] No valid text found in response');
+            console.error('❌ [DEBUG] Full Response:', JSON.stringify(data, null, 2));
+            throw new Error('No text found in AI response');
+            
+        } catch (error) {
+            lastError = error;
+            console.error(`❌ [ATTEMPT ${attempt}] Error:`, error.message);
+            
+            // إذا كان timeout أو network error، حاول مرة ثانية
+            if (attempt < MAX_RETRIES && (error.message.includes('timeout') || error.message.includes('fetch') || error.message.includes('Server Error'))) {
+                const delay = Math.pow(2, attempt) * 1000;
+                console.log(`⏳ انتظار ${delay/1000} ثانية قبل المحاولة التالية...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            
+            // إذا كان client error، لا نحاول مرة ثانية
+            break;
         }
     }
     
-    // محاولة بديلة
-    if (data.output_text) {
-        console.log('✅ [DEBUG] Found direct output_text');
-        return data.output_text;
-    }
-    
-    // فشلت جميع المحاولات
-    console.error('❌ [DEBUG] فشل استخراج النص من Response');
-    console.error('❌ [DEBUG] Full Response:', JSON.stringify(data, null, 2));
-    throw new Error('لم يتمكن GPT-5 من معالجة الطلب');
+    // فشلت جميع المحاولات - نرمي error بدل fallback
+    console.error('❌ [FAILED] فشلت جميع المحاولات');
+    throw lastError || new Error('Failed to get AI response after all retries');
 }
 
 // ─────────────────────────────────────────────────────────── 
-// 🔄 Fallback Response (if no API key or error)
-// ─────────────────────────────────────────────────────────── 
-
-// ─────────────────────────────────────────────────────────── 
-// 🔄 Fallback Response (if no OpenAI API)
-// ─────────────────────────────────────────────────────────── 
-function generateFallbackResponse(message, images) {
-    const responses = [
-        `هلا والله! 👋\n\nأنا الدلما AI، مساعدك الذكي من أهل عرعر إلى أهلها.\n\n${message ? `سؤالك: "${message}"\n\n` : ''}${images.length > 0 ? `📸 تم استلام ${images.length} صورة.\n\n` : ''}أنا حاضر بخدمتك دايم.\n\nأقدر أساعدك في:\n✨ الإجابة على أسئلتك\n🖼️ تحليل الصور\n💡 تقديم الاقتراحات\n📚 شرح المفاهيم\n\nوش تبيني أركّز عليه؟`,
-        
-        `أهلاً وسهلاً! 🌊\n\n${message ? `شكراً لرسالتك: "${message}"\n\n` : ''}${images.length > 0 ? `تم استلام ${images.length} صورة 📸\n\n` : ''}أنا الدلما AI، مساعدك الذكي المتطور من شركة كارمار.\n\n💚 الدلما... زرعها طيب، وخيرها باقٍ`,
-        
-        `مرحباً بك في الدلما AI! 🤖\n\n${message ? `سؤالك الرائع: "${message}"\n\n` : ''}${images.length > 0 ? `🖼️ لقد أرسلت ${images.length} صورة\n\n` : ''}أنا هنا لمساعدتك على طول!\n\n✅ فهم الصور\n✅ تحليل المحتوى\n✅ تقديم إجابات متقدمة\n\n🌊 من أهل عرعر إلى أهلها`
-    ];
-
-    return responses[Math.floor(Math.random() * responses.length)];
-}
+// ✅ No Fallback - Always use real AI or fail gracefully
+// ───────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────── 
 // 🚀 Start Server

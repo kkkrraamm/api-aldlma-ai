@@ -70,16 +70,166 @@ body {
     position: relative;
 }
 
-/* ==================== 3D Background Canvas ==================== */
-#bg-canvas {
+/* ==================== Animated Background ==================== */
+.animated-bg {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
     z-index: 0;
+    opacity: 0.7;
     pointer-events: none;
-    opacity: 0.6;
+    overflow: hidden;
+}
+
+/* Waves - موجات الدلما */
+.wave {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    border-radius: 45%;
+    opacity: 0.15;
+}
+
+.wave-1 {
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+    animation: wave-float 12s ease-in-out infinite;
+    top: -50%;
+    left: -50%;
+}
+
+.wave-2 {
+    background: radial-gradient(circle, var(--sand) 0%, transparent 70%);
+    animation: wave-float 15s ease-in-out infinite reverse;
+    top: -30%;
+    left: -30%;
+    animation-delay: -5s;
+}
+
+.wave-3 {
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+    animation: wave-float 18s ease-in-out infinite;
+    top: -40%;
+    left: -40%;
+    animation-delay: -10s;
+}
+
+@keyframes wave-float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    25% {
+        transform: translate(10%, -10%) rotate(90deg);
+    }
+    50% {
+        transform: translate(20%, 5%) rotate(180deg);
+    }
+    75% {
+        transform: translate(5%, 15%) rotate(270deg);
+    }
+}
+
+/* Particles - جزيئات متحركة */
+.particles {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--glow-color);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--glow-color);
+    animation: particle-float 8s linear infinite;
+}
+
+.particle:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 10s; }
+.particle:nth-child(2) { left: 20%; animation-delay: -2s; animation-duration: 12s; }
+.particle:nth-child(3) { left: 30%; animation-delay: -4s; animation-duration: 9s; }
+.particle:nth-child(4) { left: 40%; animation-delay: -1s; animation-duration: 11s; }
+.particle:nth-child(5) { left: 50%; animation-delay: -3s; animation-duration: 13s; }
+.particle:nth-child(6) { left: 60%; animation-delay: -5s; animation-duration: 10s; }
+.particle:nth-child(7) { left: 70%; animation-delay: -2.5s; animation-duration: 14s; }
+.particle:nth-child(8) { left: 80%; animation-delay: -4.5s; animation-duration: 9s; }
+.particle:nth-child(9) { left: 90%; animation-delay: -1.5s; animation-duration: 12s; }
+.particle:nth-child(10) { left: 15%; animation-delay: -3.5s; animation-duration: 11s; background: var(--sand); box-shadow: 0 0 10px var(--sand); }
+.particle:nth-child(11) { left: 25%; animation-delay: -0.5s; animation-duration: 13s; background: var(--sand); box-shadow: 0 0 10px var(--sand); }
+.particle:nth-child(12) { left: 35%; animation-delay: -2.8s; animation-duration: 10s; background: var(--sand); box-shadow: 0 0 10px var(--sand); }
+.particle:nth-child(13) { left: 45%; animation-delay: -4.2s; animation-duration: 14s; }
+.particle:nth-child(14) { left: 55%; animation-delay: -1.8s; animation-duration: 9s; }
+.particle:nth-child(15) { left: 65%; animation-delay: -3.2s; animation-duration: 12s; }
+.particle:nth-child(16) { left: 75%; animation-delay: -5.5s; animation-duration: 11s; background: var(--sand); box-shadow: 0 0 10px var(--sand); }
+.particle:nth-child(17) { left: 85%; animation-delay: -2.2s; animation-duration: 13s; }
+.particle:nth-child(18) { left: 95%; animation-delay: -4.8s; animation-duration: 10s; background: var(--sand); box-shadow: 0 0 10px var(--sand); }
+.particle:nth-child(19) { left: 12%; animation-delay: -1.2s; animation-duration: 14s; }
+.particle:nth-child(20) { left: 88%; animation-delay: -3.8s; animation-duration: 9s; }
+
+@keyframes particle-float {
+    0% {
+        transform: translateY(100vh) scale(0);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100vh) scale(1);
+        opacity: 0;
+    }
+}
+
+/* Glowing Orbs - كرات طاقة متوهجة */
+.glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.3;
+    animation: glow-pulse 6s ease-in-out infinite;
+}
+
+.glow-1 {
+    width: 300px;
+    height: 300px;
+    background: var(--glow-color);
+    top: 20%;
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.glow-2 {
+    width: 250px;
+    height: 250px;
+    background: var(--sand);
+    top: 60%;
+    right: 15%;
+    animation-delay: -2s;
+}
+
+.glow-3 {
+    width: 280px;
+    height: 280px;
+    background: var(--glow-color);
+    bottom: 10%;
+    left: 50%;
+    animation-delay: -4s;
+}
+
+@keyframes glow-pulse {
+    0%, 100% {
+        transform: scale(1) translateY(0);
+        opacity: 0.3;
+    }
+    50% {
+        transform: scale(1.2) translateY(-20px);
+        opacity: 0.5;
+    }
 }
 
 /* ==================== Scroll Container ==================== */
