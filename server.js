@@ -90,7 +90,7 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
             try {
                 aiResponse = await getOpenAIResponse(message, images, chatHistory);
             } catch (error) {
-                console.error('❌ OpenAI Error:', error.message);
+                console.error('❌ AI Engine Error:', error.message);
                 aiResponse = generateFallbackResponse(message, images);
             }
         } else {
@@ -180,7 +180,7 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         });
 
         if (!resp.ok) {
-            throw new Error(`OpenAI Responses API Error: ${resp.status}`);
+            throw new Error(`AI API Error: ${resp.status}`);
         }
 
         const data = await resp.json();
@@ -205,8 +205,8 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         }
         
         // فشلت جميع المحاولات - أرجع خطأ واضح
-        console.error('❌ فشل استخراج النص من OpenAI Response:', JSON.stringify(data, null, 2));
-        throw new Error('لم أتمكن من استخراج الرد من OpenAI');
+        console.error('❌ فشل استخراج النص من AI Response:', JSON.stringify(data, null, 2));
+        throw new Error('لم أتمكن من استخراج الرد من محرك الذكاء الاصطناعي');
     }
 
     // وإلا: نستخدم chat.completions التقليدي مع system + user
@@ -302,11 +302,11 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
 // ─────────────────────────────────────────────────────────── 
 function generateFallbackResponse(message, images) {
     const responses = [
-        `مرحباً! 👋\n\nأنا الدلما AI، مساعدك الذكي من أهل عرعر إلى أهلها.\n\n${message ? `سؤالك: "${message}"\n\n` : ''}${images.length > 0 ? `📸 تم استلام ${images.length} صورة.\n\n` : ''}للأسف، لا يمكنني معالجة طلبك بشكل كامل حالياً لأن مفتاح OpenAI غير مفعّل.\n\nلكن يمكنني مساعدتك في:\n✨ الإجابة على أسئلتك\n🖼️ تحليل الصور\n💡 تقديم الاقتراحات\n📚 شرح المفاهيم\n\nكيف يمكنني مساعدتك اليوم؟`,
+        `هلا والله! 👋\n\nأنا الدلما AI، مساعدك الذكي من أهل عرعر إلى أهلها.\n\n${message ? `سؤالك: "${message}"\n\n` : ''}${images.length > 0 ? `📸 تم استلام ${images.length} صورة.\n\n` : ''}حالياً أعمل في الوضع التجريبي.\n\nلكن يمكنني مساعدتك في:\n✨ الإجابة على أسئلتك\n🖼️ تحليل الصور\n💡 تقديم الاقتراحات\n📚 شرح المفاهيم\n\nكيف يمكنني مساعدتك اليوم؟`,
         
-        `أهلاً وسهلاً! 🌊\n\n${message ? `شكراً لرسالتك: "${message}"\n\n` : ''}${images.length > 0 ? `تم استلام ${images.length} صورة 📸\n\n` : ''}أنا الدلما AI، مساعدك الذكي المتطور.\n\nحالياً أعمل في الوضع التجريبي. لتفعيل جميع المميزات، يرجى إضافة مفتاح OpenAI API.\n\n💚 الدلما... زرعها طيب، وخيرها باقٍ`,
+        `أهلاً وسهلاً! 🌊\n\n${message ? `شكراً لرسالتك: "${message}"\n\n` : ''}${images.length > 0 ? `تم استلام ${images.length} صورة 📸\n\n` : ''}أنا الدلما AI، مساعدك الذكي المتطور من شركة كارمار.\n\n💚 الدلما... زرعها طيب، وخيرها باقٍ`,
         
-        `مرحباً بك في الدلما AI! 🤖\n\n${message ? `سؤالك الرائع: "${message}"\n\n` : ''}${images.length > 0 ? `🖼️ لقد أرسلت ${images.length} صورة\n\n` : ''}أنا هنا لمساعدتك، لكن للحصول على ردود أكثر تطوراً، يرجى تفعيل OpenAI API في Environment Variables على Render:\n\nOPENAI_API_KEY=your-api-key-here\n\nبعدها سأكون قادراً على:\n✅ فهم الصور\n✅ تحليل المحتوى\n✅ تقديم إجابات متقدمة\n\n🌊 من أهل عرعر إلى أهلها`
+        `مرحباً بك في الدلما AI! 🤖\n\n${message ? `سؤالك الرائع: "${message}"\n\n` : ''}${images.length > 0 ? `🖼️ لقد أرسلت ${images.length} صورة\n\n` : ''}أنا هنا لمساعدتك على طول!\n\n✅ فهم الصور\n✅ تحليل المحتوى\n✅ تقديم إجابات متقدمة\n\n🌊 من أهل عرعر إلى أهلها`
     ];
 
     return responses[Math.floor(Math.random() * responses.length)];
@@ -325,8 +325,8 @@ app.listen(PORT, () => {
     console.log(`💬 Chat: POST http://localhost:${PORT}/chat`);
     console.log('');
     console.log('📊 Status:');
-    console.log(`   OpenAI API: ${process.env.OPENAI_API_KEY ? '✅ Active' : '⚠️  Not configured'}`);
-    console.log(`   Model: ${process.env.MODEL || 'gpt-4o-mini'}`);
+    console.log(`   AI Engine: ${process.env.OPENAI_API_KEY ? '✅ Active' : '⚠️  Not configured'}`);
+    console.log(`   Model: ${process.env.MODEL || 'default'}`);
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('');

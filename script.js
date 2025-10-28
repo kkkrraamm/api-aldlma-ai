@@ -78,9 +78,21 @@ function loadHistory() {
 
 function saveHistory() {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+        // حفظ المحادثات بدون الصور (لتوفير المساحة)
+        const historyWithoutImages = chatHistory.map(msg => ({
+            role: msg.role,
+            text: msg.text,
+            time: msg.time
+            // لا نحفظ images لتوفير مساحة localStorage
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(historyWithoutImages));
     } catch (error) {
         console.error('خطأ في حفظ المحادثات:', error);
+        // إذا امتلأت المساحة، احذف أقدم 50% من المحادثات
+        if (error.name === 'QuotaExceededError') {
+            chatHistory = chatHistory.slice(Math.floor(chatHistory.length / 2));
+            saveHistory(); // حاول مرة أخرى
+        }
     }
 }
 
