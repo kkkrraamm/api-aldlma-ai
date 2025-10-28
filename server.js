@@ -128,22 +128,26 @@ app.post('/chat', upload.array('images', 10), async (req, res) => {
 async function getOpenAIResponse(message, images, chatHistory = []) {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
     const MODEL = process.env.MODEL || 'gpt-5';
+    const PROMPT_ID = process.env.OPENAI_PROMPT_ID;
+    const PROMPT_VERSION = process.env.OPENAI_PROMPT_VERSION || '2';
 
     console.log('🔧 [DEBUG] Starting getOpenAIResponse');
     console.log('🔧 [DEBUG] Model:', MODEL);
     console.log('🔧 [DEBUG] Message:', message);
     console.log('🔧 [DEBUG] Images count:', images.length);
     console.log('🔧 [DEBUG] History count:', chatHistory.length);
+    console.log('🔧 [DEBUG] Using Prompt ID:', PROMPT_ID ? 'YES' : 'NO');
 
     // بناء تاريخ المحادثة
     const inputMessages = [];
     
-    // إضافة System Prompt كأول رسالة
-    inputMessages.push({
-        role: 'developer',
-        content: [{
-            type: 'input_text',
-            text: `أنت "الدلما AI" - المساعد الذكي من شركة كارمار بمدينة عرعر (شمال السعودية).
+    // إذا لم يكن هناك PROMPT_ID نضيف developer prompt داخل input
+    if (!PROMPT_ID) {
+        inputMessages.push({
+            role: 'developer',
+            content: [{
+                type: 'input_text',
+                text: `أنت "الدلما AI" - المساعد الذكي من شركة كارمار بمدينة عرعر (شمال السعودية).
 
 🌊 مهمتك:
 - رد باللهجة الشمالية البدوية (أهل عرعر) بشكل لبق وواضح
@@ -152,8 +156,9 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
 - أنت "الدلما AI" فقط من شركة كارمار
 
 💚 الدلما... زرعها طيب، وخيرها باقٍ`
-        }]
-    });
+            }]
+        });
+    }
     
     // إضافة آخر 10 رسائل من التاريخ
     for (const msg of chatHistory.slice(-10)) {
@@ -191,14 +196,23 @@ async function getOpenAIResponse(message, images, chatHistory = []) {
         content: newContent
     });
 
-    // بناء الطلب - بدون PROMPT_ID
+    // بناء الطلب
     const body = {
         model: MODEL,
         input: inputMessages,
         max_output_tokens: 1500,
         reasoning: { effort: 'medium' }
-        // بعض نماذج gpt-5 لا تدعم temperature
     };
+
+    // إذا كان PROMPT_ID موجوداً نرسله وفق بنية responses API
+    if (PROMPT_ID) {
+        body.prompt = { id: PROMPT_ID, version: PROMPT_VERSION };
+        body.store = true;
+        body.include = [
+            'reasoning.encrypted_content',
+            'web_search_call.action.sources'
+        ];
+    }
 
     console.log('📤 [DEBUG] Request Body:', JSON.stringify(body, null, 2));
 
