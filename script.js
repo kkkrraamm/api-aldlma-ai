@@ -30,8 +30,16 @@ function init() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
     
-    // Initialize 3D Background
-    init3DBackground();
+    // Initialize 3D Background (check if THREE is loaded)
+    if (typeof THREE !== 'undefined') {
+        try {
+            init3DBackground();
+        } catch(e) {
+            console.warn('⚠️ 3D Background error:', e);
+        }
+    } else {
+        console.warn('⚠️ THREE.js not loaded yet');
+    }
     
     // Load chat history
     loadHistory();
